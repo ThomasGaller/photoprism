@@ -211,6 +211,15 @@ func TestConfig_DetectNSFW(t *testing.T) {
 	assert.Equal(t, true, result)
 }
 
+func TestConfig_AdminUser(t *testing.T) {
+	c := NewConfig(CliTestContext())
+
+	c.options.AdminUser = "foo  "
+	assert.Equal(t, "foo", c.AdminUser())
+	c.options.AdminUser = "  Admin"
+	assert.Equal(t, "admin", c.AdminUser())
+}
+
 func TestConfig_AdminPassword(t *testing.T) {
 	c := NewConfig(CliTestContext())
 
@@ -400,7 +409,7 @@ func TestConfig_ResolutionLimit(t *testing.T) {
 	c.options.ResolutionLimit = -1
 	assert.Equal(t, -1, c.ResolutionLimit())
 	c.options.Sponsor = false
-	assert.Equal(t, 100, c.ResolutionLimit())
+	assert.Equal(t, 150, c.ResolutionLimit())
 	c.options.Sponsor = true
 	assert.Equal(t, -1, c.ResolutionLimit())
 }

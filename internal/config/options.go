@@ -26,6 +26,7 @@ type Options struct {
 	PartnerID             string        `yaml:"-" json:"-" flag:"partner-id"`
 	AuthMode              string        `yaml:"AuthMode" json:"-" flag:"auth-mode"`
 	Public                bool          `yaml:"Public" json:"-" flag:"public"`
+	AdminUser             string        `yaml:"AdminUser" json:"-" flag:"admin-user"`
 	AdminPassword         string        `yaml:"AdminPassword" json:"-" flag:"admin-password"`
 	LogLevel              string        `yaml:"LogLevel" json:"-" flag:"log-level"`
 	Prod                  bool          `yaml:"Prod" json:"Prod" flag:"prod"`
@@ -89,8 +90,8 @@ type Options struct {
 	ImprintUrl            string        `yaml:"ImprintUrl" json:"ImprintUrl" flag:"imprint-url"`
 	DatabaseDriver        string        `yaml:"DatabaseDriver" json:"-" flag:"database-driver"`
 	DatabaseDsn           string        `yaml:"DatabaseDsn" json:"-" flag:"database-dsn"`
-	DatabaseServer        string        `yaml:"DatabaseServer" json:"-" flag:"database-server"`
 	DatabaseName          string        `yaml:"DatabaseName" json:"-" flag:"database-name"`
+	DatabaseServer        string        `yaml:"DatabaseServer" json:"-" flag:"database-server"`
 	DatabaseUser          string        `yaml:"DatabaseUser" json:"-" flag:"database-user"`
 	DatabasePassword      string        `yaml:"DatabasePassword" json:"-" flag:"database-password"`
 	DatabaseConns         int           `yaml:"DatabaseConns" json:"-" flag:"database-conns"`
@@ -106,6 +107,7 @@ type Options struct {
 	RawtherapeeBin        string        `yaml:"RawtherapeeBin" json:"-" flag:"rawtherapee-bin"`
 	RawtherapeeBlacklist  string        `yaml:"RawtherapeeBlacklist" json:"-" flag:"rawtherapee-blacklist"`
 	SipsBin               string        `yaml:"SipsBin" json:"-" flag:"sips-bin"`
+	SipsBlacklist         string        `yaml:"SipsBlacklist" json:"-" flag:"sips-blacklist"`
 	HeifConvertBin        string        `yaml:"HeifConvertBin" json:"-" flag:"heifconvert-bin"`
 	FFmpegBin             string        `yaml:"FFmpegBin" json:"-" flag:"ffmpeg-bin"`
 	FFmpegEncoder         string        `yaml:"FFmpegEncoder" json:"FFmpegEncoder" flag:"ffmpeg-encoder"`

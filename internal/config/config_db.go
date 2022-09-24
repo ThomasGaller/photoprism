@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/photoprism/photoprism/pkg/clean"
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
@@ -33,13 +34,6 @@ const (
 	SQLiteTestDB    = ".test.db"
 	SQLiteMemoryDSN = ":memory:"
 )
-
-// dsnPattern is a regular expression matching a database DSN string.
-var dsnPattern = regexp.MustCompile(
-	`^(?:(?P<user>.*?)(?::(?P<password>.*))?@)?` +
-		`(?:(?P<net>[^\(]*)(?:\((?P<server>[^\)]*)\))?)?` +
-		`\/(?P<name>.*?)` +
-		`(?:\?(?P<params>[^\?]*))?$`)
 
 // DatabaseDriver returns the database driver name.
 func (c *Config) DatabaseDriver() string {
@@ -93,7 +87,7 @@ func (c *Config) DatabaseDsn() string {
 				c.DatabasePort(),
 			)
 		case SQLite3:
-			return filepath.Join(c.StoragePath(), "index.db")
+			return filepath.Join(c.StoragePath(), "index.db?_busy_timeout=5000")
 		default:
 			log.Errorf("config: empty database dsn")
 			return ""
@@ -109,28 +103,21 @@ func (c *Config) ParseDatabaseDsn() {
 		return
 	}
 
-	matches := dsnPattern.FindStringSubmatch(c.options.DatabaseDsn)
-	names := dsnPattern.SubexpNames()
+	d := NewDSN(c.options.DatabaseDsn)
 
-	for i, match := range matches {
-		switch names[i] {
-		case "user":
-			c.options.DatabaseUser = match
-		case "password":
-			c.options.DatabasePassword = match
-		case "server":
-			c.options.DatabaseServer = match
-		case "name":
-			c.options.DatabaseName = match
-		}
-	}
+	c.options.DatabaseName = d.Name
+	c.options.DatabaseServer = d.Server
+	c.options.DatabaseUser = d.User
+	c.options.DatabasePassword = d.Password
 }
 
 // DatabaseServer the database server.
 func (c *Config) DatabaseServer() string {
 	c.ParseDatabaseDsn()
 
-	if c.options.DatabaseServer == "" {
+	if c.DatabaseDriver() == SQLite3 {
+		return ""
+	} else if c.options.DatabaseServer == "" {
 		return "localhost"
 	}
 
@@ -139,6 +126,10 @@ func (c *Config) DatabaseServer() string {
 
 // DatabaseHost the database server host.
 func (c *Config) DatabaseHost() string {
+	if c.DatabaseDriver() == SQLite3 {
+		return ""
+	}
+
 	if s := strings.Split(c.DatabaseServer(), ":"); len(s) > 0 {
 		return s[0]
 	}
@@ -150,7 +141,9 @@ func (c *Config) DatabaseHost() string {
 func (c *Config) DatabasePort() int {
 	const defaultPort = 3306
 
-	if s := strings.Split(c.DatabaseServer(), ":"); len(s) != 2 {
+	if server := c.DatabaseServer(); server == "" {
+		return 0
+	} else if s := strings.Split(server, ":"); len(s) != 2 {
 		return defaultPort
 	} else if port, err := strconv.Atoi(s[1]); err != nil {
 		return defaultPort
@@ -163,6 +156,10 @@ func (c *Config) DatabasePort() int {
 
 // DatabasePortString the database server port as string.
 func (c *Config) DatabasePortString() string {
+	if c.DatabaseDriver() == SQLite3 {
+		return ""
+	}
+
 	return strconv.Itoa(c.DatabasePort())
 }
 
@@ -170,7 +167,9 @@ func (c *Config) DatabasePortString() string {
 func (c *Config) DatabaseName() string {
 	c.ParseDatabaseDsn()
 
-	if c.options.DatabaseName == "" {
+	if c.DatabaseDriver() == SQLite3 {
+		return c.DatabaseDsn()
+	} else if c.options.DatabaseName == "" {
 		return "photoprism"
 	}
 
@@ -179,6 +178,10 @@ func (c *Config) DatabaseName() string {
 
 // DatabaseUser returns the database user name.
 func (c *Config) DatabaseUser() string {
+	if c.DatabaseDriver() == SQLite3 {
+		return ""
+	}
+
 	c.ParseDatabaseDsn()
 
 	if c.options.DatabaseUser == "" {
@@ -190,6 +193,10 @@ func (c *Config) DatabaseUser() string {
 
 // DatabasePassword returns the database user password.
 func (c *Config) DatabasePassword() string {
+	if c.DatabaseDriver() == SQLite3 {
+		return ""
+	}
+
 	c.ParseDatabaseDsn()
 
 	return c.options.DatabasePassword
@@ -270,7 +277,12 @@ func (c *Config) MigrateDb(runFailed bool, ids []string) {
 	entity.SetDbProvider(c)
 	entity.InitDb(true, runFailed, ids)
 
-	entity.Admin.InitPassword(c.AdminPassword())
+	// Init admin account?
+	if c.AdminPassword() == "" {
+		log.Warnf("config: password required to initialize %s account", clean.LogQuote(c.AdminUser()))
+	} else {
+		entity.Admin.InitAccount(c.AdminUser(), c.AdminPassword())
+	}
 
 	go entity.SaveErrorMessages()
 }
@@ -281,7 +293,11 @@ func (c *Config) InitTestDb() {
 	entity.SetDbProvider(c)
 	entity.ResetTestFixtures()
 
-	entity.Admin.InitPassword(c.AdminPassword())
+	if c.AdminPassword() == "" {
+		// Do nothing.
+	} else {
+		entity.Admin.InitAccount(c.AdminUser(), c.AdminPassword())
+	}
 
 	go entity.SaveErrorMessages()
 }

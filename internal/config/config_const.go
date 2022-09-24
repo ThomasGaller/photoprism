@@ -8,6 +8,9 @@ const ApiUri = "/api/v1"
 // StaticUri is the relative path for serving static content.
 const StaticUri = "/static"
 
+// CustomStaticUri is the relative path for serving custom static content.
+const CustomStaticUri = "/c/static"
+
 // MsgSponsor and MsgSignUp provide sponsorship info messages;
 // SignUpURL a signup link.
 const MsgSponsor = "PhotoPrism® needs your support!"
@@ -39,6 +42,9 @@ const MinMem = Gigabyte
 
 // RecommendedMem is the recommended amount of system memory.
 const RecommendedMem = 3 * Gigabyte // 3,000,000,000 Bytes
+
+// DefaultResolutionLimit defines the default resolution limit.
+const DefaultResolutionLimit = 150 // 150 Megapixels
 
 // serialName is the name of the unique storage serial.
 const serialName = "serial"

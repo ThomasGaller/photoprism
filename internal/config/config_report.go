@@ -11,9 +11,18 @@ import (
 func (c *Config) Report() (rows [][]string, cols []string) {
 	cols = []string{"Value", "Name"}
 
+	var dbKey string
+
+	if c.DatabaseDriver() == SQLite3 {
+		dbKey = "database-dsn"
+	} else {
+		dbKey = "database-name"
+	}
+
 	rows = [][]string{
 		// Authentication.
 		{"auth-mode", fmt.Sprintf("%s", c.AuthMode())},
+		{"admin-user", c.AdminUser()},
 		{"admin-password", strings.Repeat("*", utf8.RuneCountInString(c.AdminPassword()))},
 		{"public", fmt.Sprintf("%t", c.Public())},
 
@@ -118,10 +127,10 @@ func (c *Config) Report() (rows [][]string, cols []string) {
 
 		// Database.
 		{"database-driver", c.DatabaseDriver()},
+		{dbKey, c.DatabaseName()},
 		{"database-server", c.DatabaseServer()},
 		{"database-host", c.DatabaseHost()},
 		{"database-port", c.DatabasePortString()},
-		{"database-name", c.DatabaseName()},
 		{"database-user", c.DatabaseUser()},
 		{"database-password", strings.Repeat("*", utf8.RuneCountInString(c.DatabasePassword()))},
 		{"database-conns", fmt.Sprintf("%d", c.DatabaseConns())},
@@ -135,6 +144,7 @@ func (c *Config) Report() (rows [][]string, cols []string) {
 		{"rawtherapee-bin", c.RawtherapeeBin()},
 		{"rawtherapee-blacklist", c.RawtherapeeBlacklist()},
 		{"sips-bin", c.SipsBin()},
+		{"sips-blacklist", c.SipsBlacklist()},
 		{"heifconvert-bin", c.HeifConvertBin()},
 		{"ffmpeg-bin", c.FFmpegBin()},
 		{"ffmpeg-encoder", c.FFmpegEncoder().String()},
@@ -167,8 +177,12 @@ func (c *Config) Report() (rows [][]string, cols []string) {
 		{"log-filename", c.LogFilename()},
 	}
 
-	if p := c.CustomAssetsPath(); p != "" {
-		rows = append(rows, []string{"custom-assets-path", p})
+	if v := c.CustomAssetsPath(); v != "" {
+		rows = append(rows, []string{"custom-assets-path", v})
+	}
+
+	if v := c.CustomStaticUri(); v != "" {
+		rows = append(rows, []string{"custom-static-uri", v})
 	}
 
 	return rows, cols
