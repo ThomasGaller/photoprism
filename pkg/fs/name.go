@@ -21,7 +21,7 @@ func FileName(fileName, dirName, baseDir, fileExt string) string {
 		}
 	}
 
-	if err := os.MkdirAll(dirName, os.ModePerm); err != nil {
+	if err := os.MkdirAll(dirName, ModeDir); err != nil {
 		fmt.Println(err.Error())
 		return ""
 	}
@@ -65,7 +65,7 @@ func FileNameHidden(name string) bool {
 	prefix := name[0:1]
 
 	switch prefix {
-	case ".", "@":
+	case ".", "@", "_":
 		return true
 	default:
 		return false

@@ -25,84 +25,162 @@ Additional information can be found in our Developer Guide:
 
 import RestModel from "model/rest";
 import Form from "common/form";
+import Util from "common/util";
 import Api from "common/api";
-import { $gettext } from "common/vm";
+import { T, $gettext } from "common/vm";
+import { config } from "app/session";
 
 export class User extends RestModel {
   getDefaults() {
     return {
       UID: "",
-      Slug: "",
-      Username: "",
+      UUID: "",
+      AuthProvider: "",
+      AuthID: "",
+      Name: "",
+      DisplayName: "",
       Email: "",
+      BackupEmail: "",
       Role: "",
+      Attr: "",
       SuperAdmin: false,
       CanLogin: false,
       CanInvite: false,
-      AuthUID: "",
-      AuthSrc: "",
-      WebUID: "",
-      WebDAV: "",
-      AvatarURL: "",
-      AvatarSrc: "",
-      Country: "",
-      TimeZone: "",
-      PlaceID: "",
-      PlaceSrc: "",
-      CellID: "",
-      SubjUID: "",
-      Bio: "",
-      Status: "",
-      URL: "",
-      Phone: "",
-      DisplayName: "",
-      FullName: "",
-      Alias: "",
-      ArtistName: "",
-      Artist: false,
-      Favorite: false,
-      Hidden: false,
-      Private: false,
-      Excluded: false,
-      CompanyName: "",
-      DepartmentName: "",
-      JobTitle: "",
-      BusinessURL: "",
-      BusinessPhone: "",
-      BusinessEmail: "",
-      BackupEmail: "",
-      BirthYear: -1,
-      BirthMonth: -1,
-      BirthDay: -1,
-      FileRoot: "",
-      FilePath: "",
-      InviteToken: "",
-      InvitedBy: "",
-      DownloadToken: "",
-      PreviewToken: "",
-      ConfirmedAt: "",
-      TermsAccepted: "",
+      BasePath: "",
+      UploadPath: "",
+      WebDAV: false,
+      Thumb: "",
+      ThumbSrc: "",
+      Settings: {
+        UITheme: "",
+        UILanguage: "",
+        UITimeZone: "",
+        MapsStyle: "",
+        MapsAnimate: 0,
+        IndexPath: "",
+        IndexRescan: 0,
+        ImportPath: "",
+        ImportMove: 0,
+        UploadPath: "",
+        DefaultPage: "",
+        CreatedAt: "",
+        UpdatedAt: "",
+      },
+      Details: {
+        SubjUID: "",
+        SubjSrc: "",
+        PlaceID: "",
+        PlaceSrc: "",
+        CellID: "",
+        BirthYear: -1,
+        BirthMonth: -1,
+        BirthDay: -1,
+        NameTitle: "",
+        GivenName: "",
+        MiddleName: "",
+        FamilyName: "",
+        NameSuffix: "",
+        NickName: "",
+        NameSrc: "",
+        Gender: "",
+        About: "",
+        Bio: "",
+        Location: "",
+        Country: "",
+        Phone: "",
+        SiteURL: "",
+        ProfileURL: "",
+        FeedURL: "",
+        AvatarURL: "",
+        OrgTitle: "",
+        OrgName: "",
+        OrgEmail: "",
+        OrgPhone: "",
+        OrgURL: "",
+        IdURL: "",
+        CreatedAt: "",
+        UpdatedAt: "",
+      },
+      VerifiedAt: "",
+      ConsentAt: "",
+      BornAt: "",
       CreatedAt: "",
       UpdatedAt: "",
-      DeletedAt: "",
+      ExpiresAt: "",
     };
   }
 
-  getEntityName() {
+  getDisplayName() {
     if (this.DisplayName) {
       return this.DisplayName;
+    } else if (this.Details && this.Details.NickName) {
+      return this.Details.NickName;
+    } else if (this.Details && this.Details.GivenName) {
+      return this.Details.GivenName;
+    } else if (this.Role) {
+      return T(Util.capitalize(this.Role));
+    } else if (this.Details && this.Details.JobTitle) {
+      return this.Details.JobTitle;
+    } else if (this.Email) {
+      return this.Email;
+    } else if (this.Name) {
+      return `@${this.Name}`;
     }
 
-    if (this.FullName) {
-      return this.FullName;
+    return $gettext("Unregistered");
+  }
+
+  getAccountInfo() {
+    if (this.Name) {
+      return `@${this.Name}`;
+    } else if (this.Email) {
+      return this.Email;
+    } else if (this.Details && this.Details.JobTitle) {
+      return this.Details.JobTitle;
+    } else if (this.Role) {
+      return T(Util.capitalize(this.Role));
     }
 
-    return this.Name;
+    return $gettext("Account");
+  }
+
+  getEntityName() {
+    return this.getDisplayName();
   }
 
   getRegisterForm() {
     return Api.options(this.getEntityResource() + "/register").then((response) =>
       Promise.resolve(new Form(response.data))
+    );
+  }
+
+  getAvatarURL(size) {
+    if (!size) {
+      size = "tile_500";
+    }
+
+    if (this.Thumb) {
+      return `${config.contentUri}/t/${this.Thumb}/${config.previewToken}/${size}`;
+    } else {
+      return `${config.staticUri}/img/avatar/${size}.jpg`;
+    }
+  }
+
+  uploadAvatar(files) {
+    if (this.busy) {
+      return Promise.reject(this);
+    } else if (!files || files.length !== 1) {
+      return Promise.reject(this);
+    }
+
+    let file = files[0];
+    let formData = new FormData();
+    let formConf = { headers: { "Content-Type": "multipart/form-data" } };
+
+    formData.append("files", file);
+
+    return Api.post(this.getEntityResource() + `/avatar`, formData, formConf).then((response) =>
+      Promise.resolve(this.setValues(response.data))
     );
   }
 
@@ -119,8 +197,8 @@ export class User extends RestModel {
     }).then((response) => Promise.resolve(response.data));
   }
 
-  saveProfile() {
-    return Api.post(this.getEntityResource() + "/profile", this.getValues()).then((response) =>
+  save() {
+    return Api.post(this.getEntityResource(), this.getValues()).then((response) =>
       Promise.resolve(this.setValues(response.data))
     );
   }

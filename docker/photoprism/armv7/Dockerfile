@@ -59,7 +59,7 @@ ENV PHOTOPRISM_ARCH=$TARGETARCH \
     PHOTOPRISM_UPLOAD_NSFW="true" \
     PHOTOPRISM_DETECT_NSFW="false" \
     PHOTOPRISM_EXPERIMENTAL="false" \
-    PHOTOPRISM_SITE_URL="http://localhost:2342/" \
+    PHOTOPRISM_SITE_URL="http://photoprism.me:2342/" \
     PHOTOPRISM_SITE_CAPTION="AI-Powered Photos App" \
     PHOTOPRISM_SITE_DESCRIPTION="" \
     PHOTOPRISM_SITE_AUTHOR="" \
@@ -93,7 +93,7 @@ ENV PHOTOPRISM_ARCH=$TARGETARCH \
 
 # Copy dist files, scripts, and debian backports sources list.
 COPY --from=build --chown=root:root --chmod=755 /opt/photoprism/ /opt/photoprism
-COPY --chown=root:root --chmod=755 /scripts/dist/* /scripts/
+COPY --chown=root:root --chmod=755 /scripts/dist/ /scripts/
 
 # Update base image and add dependencies.
 RUN echo 'APT::Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
@@ -101,22 +101,21 @@ RUN echo 'APT::Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
     echo 'APT::Install-Suggests "false";' > /etc/apt/apt.conf.d/80suggests && \
     echo 'APT::Get::Assume-Yes "true";' > /etc/apt/apt.conf.d/80forceyes && \
     echo 'APT::Get::Fix-Missing "true";' > /etc/apt/apt.conf.d/80fixmissing && \
-    mv /opt/photoprism/sbin/gosu /usr/local/sbin/gosu && \
     apt-get update && apt-get -qq upgrade && apt-get -qq install --no-install-recommends \
-      libc6 ca-certificates sudo bash tzdata \
+      libc6 ca-certificates sudo bash tzdata avahi-utils \
       gpg zip unzip wget curl rsync make nano \
       jq lsof lshw sqlite3 mariadb-client imagemagick \
-      exiftool rawtherapee libheif-examples librsvg2-bin \
+      exiftool rawtherapee librsvg2-bin \
       ffmpeg ffmpegthumbnailer libavcodec-extra \
       libmatroska7 libdvdread8 libebml5 libgav1-bin libatomic1 \
-      x264 x265 libvpx7 libwebm1 \
+      x264 x265 libde265-dev libaom3 libjpeg8 libvpx7 libwebm1 \
     && \
+    /scripts/install-libheif.sh && \
     echo 'alias ll="ls -alh"' >> /etc/skel/.bashrc && \
     echo 'export PS1="\u@$DOCKER_TAG:\w\$ "' >> /etc/skel/.bashrc && \
     echo "ALL ALL=(ALL) NOPASSWD:SETENV: /scripts/entrypoint-init.sh" >> /etc/sudoers.d/init && \
     cp /etc/skel/.bashrc /root/.bashrc && \
     /scripts/create-users.sh && \
-    cp /scripts/heif-convert.sh /usr/local/bin/heif-convert && \
     install -d -m 0777 -o 1000 -g 1000 \
       /photoprism/originals \
       /photoprism/import \
@@ -131,8 +130,8 @@ RUN echo 'APT::Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
 # Default working directory.
 WORKDIR /photoprism
 
-# Expose HTTP port.
-EXPOSE 2342
+# Expose HTTP(S) ports.
+EXPOSE 2342 2443
 
 # Declare container entrypoint script.
 ENTRYPOINT ["/scripts/entrypoint.sh"]

@@ -33,7 +33,7 @@ ENV PHOTOPRISM_ARCH=$TARGETARCH \
     PROG="photoprism"
 
 # copy scripts and debian backports sources list
-COPY --chown=root:root --chmod=755 /scripts/dist/* /scripts/
+COPY --chown=root:root --chmod=755 /scripts/dist/ /scripts/
 COPY --chown=root:root --chmod=644 /docker/develop/bullseye/sources.list /etc/apt/sources.list.d/bullseye.list
 
 # install additional distribution packages
@@ -92,8 +92,8 @@ RUN echo 'APT::Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
 # define default directory and user
 WORKDIR /photoprism
 
-# expose default http port 2342
-EXPOSE 2342
+# Expose HTTP(S) ports.
+EXPOSE 2342 2443
 
 # keep container running
 CMD ["tail", "-f", "/dev/null"]

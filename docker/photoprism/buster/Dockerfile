@@ -59,7 +59,7 @@ ENV PHOTOPRISM_ARCH=$TARGETARCH \
     PHOTOPRISM_UPLOAD_NSFW="true" \
     PHOTOPRISM_DETECT_NSFW="false" \
     PHOTOPRISM_EXPERIMENTAL="false" \
-    PHOTOPRISM_SITE_URL="http://localhost:2342/" \
+    PHOTOPRISM_SITE_URL="http://photoprism.me:2342/" \
     PHOTOPRISM_SITE_CAPTION="AI-Powered Photos App" \
     PHOTOPRISM_SITE_DESCRIPTION="" \
     PHOTOPRISM_SITE_AUTHOR="" \
@@ -93,7 +93,7 @@ ENV PHOTOPRISM_ARCH=$TARGETARCH \
 
 # Copy dist files, scripts, and debian backports sources list.
 COPY --from=build --chown=root:root --chmod=755 /opt/photoprism/ /opt/photoprism
-COPY --chown=root:root --chmod=755 /scripts/dist/* /scripts/
+COPY --chown=root:root --chmod=755 /scripts/dist/ /scripts/
 COPY --chown=root:root --chmod=644 /docker/develop/buster/sources.list /etc/apt/sources.list.d/buster.list
 
 # Update base image and add dependencies.
@@ -102,7 +102,6 @@ RUN echo 'APT::Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
     echo 'APT::Install-Suggests "false";' > /etc/apt/apt.conf.d/80suggests && \
     echo 'APT::Get::Assume-Yes "true";' > /etc/apt/apt.conf.d/80forceyes && \
     echo 'APT::Get::Fix-Missing "true";' > /etc/apt/apt.conf.d/80fixmissing && \
-    mv /opt/photoprism/sbin/gosu /usr/local/sbin/gosu && \
     apt-get update && apt-get -qq dist-upgrade && apt-get -qq install --no-install-recommends \
       ca-certificates \
       jq \
@@ -148,8 +147,8 @@ RUN echo 'APT::Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
 # Default working directory.
 WORKDIR /photoprism
 
-# Expose HTTP port.
-EXPOSE 2342
+# Expose HTTP(S) ports.
+EXPOSE 2342 2443
 
 # Declare container entrypoint script.
 ENTRYPOINT ["/scripts/entrypoint.sh"]

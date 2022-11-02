@@ -2,6 +2,7 @@ package entity
 
 import (
 	"github.com/photoprism/photoprism/pkg/media"
+	"github.com/sirupsen/logrus"
 )
 
 // Default values.
@@ -55,6 +56,8 @@ const (
 const (
 	SortOrderDefault   = ""
 	SortOrderRelevance = "relevance"
+	SortOrderDuration  = "duration"
+	SortOrderSize      = "size"
 	SortOrderCount     = "count"
 	SortOrderAdded     = "added"
 	SortOrderImported  = "imported"
@@ -70,10 +73,13 @@ const (
 	SortOrderSimilar   = "similar"
 )
 
-// User feature flags.
+// Log levels.
 const (
-	IsEnabled   = "enabled"
-	IsDisabled  = "disabled"
-	CanUpload   = "upload"
-	CanDownload = "download"
+	PanicLevel logrus.Level = iota
+	FatalLevel
+	ErrorLevel
+	WarnLevel
+	InfoLevel
+	DebugLevel
+	TraceLevel
 )

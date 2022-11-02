@@ -42,7 +42,7 @@ endif
 
 # Declare "make" targets.
 all: dep build-js
-dep: dep-tensorflow dep-npm dep-js dep-go
+dep: dep-tensorflow dep-npm dep-js
 build: build-go
 pull: docker-pull
 test: test-js test-go
@@ -50,6 +50,7 @@ test-go: reset-sqlite run-test-go
 test-pkg: reset-sqlite run-test-pkg
 test-api: reset-sqlite run-test-api
 test-commands: reset-sqlite run-test-commands
+test-photoprism: reset-sqlite run-test-photoprism
 test-short: reset-sqlite run-test-short
 test-mariadb: reset-acceptance run-test-mariadb
 acceptance-run-chromium: storage/acceptance acceptance-auth-sqlite-restart acceptance-auth acceptance-auth-sqlite-stop acceptance-sqlite-restart acceptance acceptance-sqlite-stop
@@ -80,6 +81,8 @@ fix-permissions:
 	else\
 		echo "Running as root. Nothing to do."; \
 	fi
+gettext-merge:
+	./scripts/gettext-merge.sh
 clean:
 	rm -f *.log .test*
 	[ ! -f "$(BINARY_NAME)" ] || rm -f $(BINARY_NAME)
@@ -96,13 +99,11 @@ install:
 	mkdir --mode=$(INSTALL_MODE) -p $(DESTDIR)
 	env TMPDIR="$(BUILD_PATH)" ./scripts/dist/install-tensorflow.sh $(DESTDIR)
 	rm -rf --preserve-root $(DESTDIR)/include
-	(cd $(DESTDIR) && mkdir -p bin sbin lib assets config config/examples)
+	(cd $(DESTDIR) && mkdir -p bin lib assets config config/examples)
 	./scripts/build.sh prod "$(DESTDIR)/bin/$(BINARY_NAME)"
-	GOBIN="$(DESTDIR)/sbin" go install github.com/tianon/gosu@latest
 	rsync -r -l --safe-links --exclude-from=assets/.buildignore --chmod=a+r,u+rw ./assets/ $(DESTDIR)/assets
 	wget -O $(DESTDIR)/assets/static/img/wallpaper/welcome.jpg https://cdn.photoprism.app/wallpaper/welcome.jpg
 	wget -O $(DESTDIR)/assets/static/img/preview.jpg https://cdn.photoprism.app/img/preview.jpg
-	cp scripts/dist/heif-convert.sh $(DESTDIR)/bin/heif-convert
 	cp internal/config/testdata/*.yml $(DESTDIR)/config/examples
 	chown -R $(INSTALL_USER) $(DESTDIR)
 	chmod -R $(INSTALL_MODE) $(DESTDIR)
@@ -131,9 +132,9 @@ acceptance-sqlite-stop:
 acceptance-auth-sqlite-restart:
 	cp -f storage/acceptance/backup.db storage/acceptance/index.db
 	cp -f storage/acceptance/config-sqlite/settingsBackup.yml storage/acceptance/config-sqlite/settings.yml
-	./photoprism --auth-mode "passwd" -c "./storage/acceptance/config-sqlite" --test start -d
+	./photoprism --auth-mode="password" -c "./storage/acceptance/config-sqlite" --test start -d
 acceptance-auth-sqlite-stop:
-	./photoprism --auth-mode "passwd" -c "./storage/acceptance/config-sqlite" --test stop
+	./photoprism --auth-mode="password" -c "./storage/acceptance/config-sqlite" --test stop
 start:
 	./photoprism start -d
 stop:
@@ -154,6 +155,9 @@ generate:
 		git checkout -- assets/locales/messages.pot;\
 		echo "Reverted unnecessary change in assets/locales/messages.pot.";\
 	fi
+go-generate:
+	go generate ./pkg/... ./internal/...
+	go fmt ./pkg/... ./internal/...
 clean-local-assets:
 	rm -rf $(BUILD_PATH)/assets/*
 clean-local-cache:
@@ -229,6 +233,9 @@ acceptance-auth-short:
 acceptance-auth-firefox:
 	$(info Running JS acceptance-auth tests in Firefox...)
 	(cd frontend &&	npm run testcafe -- firefox:headless --test-grep "^(Common|Core)\:*" --test-meta mode=auth --config-file ./testcaferc.json "tests/acceptance")
+reset-mariadb:
+	$(info Resetting photoprism database...)
+	mysql < scripts/sql/reset-photoprism.sql
 reset-mariadb-testdb:
 	$(info Resetting testdb database...)
 	mysql < scripts/sql/reset-testdb.sql
@@ -238,10 +245,7 @@ reset-mariadb-local:
 reset-mariadb-acceptance:
 	$(info Resetting acceptance database...)
 	mysql < scripts/sql/reset-acceptance.sql
-reset-mariadb-photoprism:
-	$(info Resetting photoprism database...)
-	mysql < scripts/sql/reset-photoprism.sql
-reset-mariadb: reset-mariadb-testdb reset-mariadb-local reset-mariadb-acceptance reset-mariadb-photoprism
+reset-mariadb-all: reset-mariadb-testdb reset-mariadb-local reset-mariadb-acceptance reset-mariadb-photoprism
 reset-testdb: reset-sqlite reset-mariadb-testdb
 reset-acceptance: reset-mariadb-acceptance
 reset-sqlite:
@@ -265,6 +269,9 @@ run-test-api:
 run-test-commands:
 	$(info Running all CLI command tests...)
 	$(GOTEST) -parallel 2 -count 1 -cpu 2 -tags slow -timeout 20m ./internal/commands/...
+run-test-photoprism:
+	$(info Running all Go tests in "/internal/photoprism"...)
+	$(GOTEST) -parallel 2 -count 1 -cpu 2 -tags slow -timeout 20m ./internal/photoprism/...
 test-parallel:
 	$(info Running all Go tests in parallel mode...)
 	$(GOTEST) -parallel 2 -count 1 -cpu 2 -tags slow -timeout 20m ./pkg/... ./internal/...
@@ -281,6 +288,9 @@ test-coverage:
 docker-pull:
 	docker-compose pull --ignore-pull-failures
 	docker-compose -f docker-compose.latest.yml pull --ignore-pull-failures
+docker-build:
+	docker-compose pull --ignore-pull-failures
+	docker-compose build
 docker-develop: docker-develop-latest
 docker-develop-all: docker-develop-latest docker-develop-other
 docker-develop-latest: docker-develop-ubuntu docker-develop-armv7
@@ -322,6 +332,12 @@ docker-develop-jammy-slim:
 	docker pull --platform=amd64 ubuntu:jammy
 	docker pull --platform=arm64 ubuntu:jammy
 	scripts/docker/buildx-multi.sh develop linux/amd64,linux/arm64 jammy-slim /jammy-slim
+unstable: docker-unstable
+docker-unstable: docker-unstable-jammy
+docker-unstable-jammy:
+	docker pull --platform=amd64 photoprism/develop:jammy
+	docker pull --platform=amd64 photoprism/develop:jammy-slim
+	scripts/docker/buildx-multi.sh photoprism linux/amd64 unstable /jammy
 preview: docker-preview
 docker-preview: docker-preview-latest
 docker-preview-all: docker-preview-latest docker-preview-other
@@ -415,9 +431,31 @@ docker-release-impish:
 	docker pull --platform=arm64 ubuntu:impish
 	scripts/docker/buildx-multi.sh photoprism linux/amd64,linux/arm64 impish /impish
 start-local:
-	docker-compose -f docker-compose.local.yml up -d
+	docker-compose -f docker-compose.local.yml up -d --wait
 stop-local:
 	docker-compose -f docker-compose.local.yml stop
+mysql:
+	docker-compose -f docker-compose.mysql.yml pull mysql
+	docker-compose -f docker-compose.mysql.yml stop mysql
+	docker-compose -f docker-compose.mysql.yml up -d --wait mysql
+start-mysql:
+	docker-compose -f docker-compose.mysql.yml up -d --wait mysql
+stop-mysql:
+	docker-compose -f docker-compose.mysql.yml stop mysql
+logs-mysql:
+	docker-compose -f docker-compose.mysql.yml logs -f mysql
+latest:
+	docker-compose -f docker-compose.latest.yml pull photoprism-latest
+	docker-compose -f docker-compose.latest.yml stop photoprism-latest
+	docker-compose -f docker-compose.latest.yml up -d --wait photoprism-latest
+start-latest:
+	docker-compose -f docker-compose.latest.yml up photoprism-latest
+stop-latest:
+	docker-compose -f docker-compose.latest.yml stop photoprism-latest
+terminal-latest:
+	docker-compose -f docker-compose.latest.yml exec photoprism-latest bash
+logs-latest:
+	docker-compose -f docker-compose.latest.yml logs -f photoprism-latest
 docker-local: docker-local-bookworm
 docker-local-all: docker-local-bookworm docker-local-bullseye docker-local-buster docker-local-jammy
 docker-local-bookworm:
@@ -475,6 +513,10 @@ docker-demo-ubuntu:
 	docker pull photoprism/photoprism:preview-ubuntu
 	scripts/docker/build.sh demo ubuntu /ubuntu
 	scripts/docker/push.sh demo ubuntu
+docker-demo-unstable:
+	docker pull photoprism/photoprism:unstable
+	scripts/docker/build.sh demo $(BUILD_DATE) /unstable
+	scripts/docker/push.sh demo $(BUILD_DATE)
 docker-demo-local:
 	scripts/docker/build.sh photoprism
 	scripts/docker/build.sh demo $(BUILD_DATE) /debian
@@ -502,6 +544,9 @@ fmt-go:
 	goimports -w pkg internal cmd
 tidy:
 	go mod tidy -go=1.16 && go mod tidy -go=1.17
+users:
+	./photoprism users add -p photoprism -r admin -s -a test:true -n "Alice Austen" superadmin
+	./photoprism users ls
 
 # Declare all targets as "PHONY", see https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html.
 MAKEFLAGS += --always-make

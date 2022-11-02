@@ -48,3 +48,18 @@ const DefaultResolutionLimit = 150 // 150 Megapixels
 
 // serialName is the name of the unique storage serial.
 const serialName = "serial"
+
+// UnixHour is one hour in UnixTime.
+const UnixHour int64 = 3600
+
+// UnixDay is one day in UnixTime.
+const UnixDay = UnixHour * 24
+
+// UnixWeek is one week in UnixTime.
+const UnixWeek = UnixDay * 7
+
+// DefaultSessionMaxAge is the default session expiration time in seconds.
+const DefaultSessionMaxAge = UnixWeek * 2
+
+// DefaultSessionTimeout is the default session timeout time in seconds.
+const DefaultSessionTimeout = UnixWeek

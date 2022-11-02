@@ -57,7 +57,7 @@ ENV PHOTOPRISM_ARCH=$TARGETARCH \
     PHOTOPRISM_UPLOAD_NSFW="true" \
     PHOTOPRISM_DETECT_NSFW="false" \
     PHOTOPRISM_EXPERIMENTAL="false" \
-    PHOTOPRISM_SITE_URL="http://localhost:2342/" \
+    PHOTOPRISM_SITE_URL="http://photoprism.me:2342/" \
     PHOTOPRISM_SITE_CAPTION="AI-Powered Photos App" \
     PHOTOPRISM_SITE_DESCRIPTION="" \
     PHOTOPRISM_SITE_AUTHOR="" \
@@ -90,7 +90,7 @@ ENV PHOTOPRISM_ARCH=$TARGETARCH \
     PHOTOPRISM_AUTO_IMPORT=300
 
 # Copy scripts.
-COPY --chown=root:root --chmod=755 /scripts/dist/* /scripts/
+COPY --chown=root:root --chmod=755 /scripts/dist/ /scripts/
 
 # Update pre-installed packages.
 RUN apt-get update && \
@@ -100,12 +100,11 @@ RUN apt-get update && \
 # Default working directory.
 WORKDIR /photoprism
 
-# Expose HTTP port.
-EXPOSE 2342
+# Expose HTTP(S) ports.
+EXPOSE 2342 2443
 
 # Copy app files.
 COPY --from=build --chown=root:root --chmod=755 /opt/photoprism/ /opt/photoprism
-RUN mv /opt/photoprism/sbin/gosu /usr/local/sbin/gosu
 
 # Declare container entrypoint script.
 ENTRYPOINT ["/scripts/entrypoint.sh"]

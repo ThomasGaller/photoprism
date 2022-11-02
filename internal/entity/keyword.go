@@ -16,7 +16,7 @@ type Keyword struct {
 	Skip    bool
 }
 
-// TableName returns the entity database table name.
+// TableName returns the entity table name.
 func (Keyword) TableName() string {
 	return "keywords"
 }
@@ -42,7 +42,7 @@ func (m *Keyword) Update(attr string, value interface{}) error {
 	return UnscopedDb().Model(m).UpdateColumn(attr, value).Error
 }
 
-// Save updates the existing or inserts a new row.
+// Save updates the record in the database or inserts a new record if it does not already exist.
 func (m *Keyword) Save() error {
 	return Db().Save(m).Error
 }

@@ -4,228 +4,238 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
+	"path"
+	"strings"
 	"time"
+
+	"github.com/ulule/deepcopier"
 
 	"github.com/jinzhu/gorm"
 
 	"github.com/photoprism/photoprism/internal/acl"
+	"github.com/photoprism/photoprism/internal/event"
 	"github.com/photoprism/photoprism/internal/form"
 	"github.com/photoprism/photoprism/pkg/clean"
 	"github.com/photoprism/photoprism/pkg/rnd"
 	"github.com/photoprism/photoprism/pkg/txt"
 )
 
-var UsernameLength = 3
-var PasswordLength = 4
+// User identifier prefixes.
+const (
+	UserUID      = byte('u')
+	UserPrefix   = "user"
+	OwnerUnknown = ""
+)
+
+// LenNameMin specifies the minimum length of the username in characters.
+var LenNameMin = 3
+
+// LenPasswordMin specifies the minimum length of the password in characters.
+var LenPasswordMin = 4
 
 // Users represents a list of users.
 type Users []User
 
 // User represents a person that may optionally log in as user.
 type User struct {
-	ID             int        `gorm:"primary_key" json:"-" yaml:"-"`
-	UserUID        string     `gorm:"type:VARBINARY(42);unique_index;" json:"UID" yaml:"UID"`
-	UserSlug       string     `gorm:"type:VARBINARY(160);unique_index;" json:"Slug" yaml:"Slug,omitempty"`
-	Username       string     `gorm:"size:64;index;" json:"Username" yaml:"Username,omitempty"`
-	Email          string     `gorm:"size:255;index;" json:"Email" yaml:"Email,omitempty"`
-	UserRole       string     `gorm:"size:32;" json:"Role" yaml:"Role,omitempty"`
-	SuperAdmin     bool       `gorm:"default:false;" json:"SuperAdmin,omitempty" yaml:"SuperAdmin,omitempty"`
-	CanLogin       bool       `gorm:"default:false;" json:"CanLogin,omitempty" yaml:"CanLogin,omitempty"`
-	CanInvite      bool       `gorm:"default:false;" json:"CanInvite,omitempty" yaml:"CanInvite,omitempty"`
-	ShareUID       string     `gorm:"type:VARBINARY(42);index;" json:"ShareUID" yaml:"ShareUID,omitempty"`
-	AuthUID        string     `gorm:"type:VARBINARY(512);column:auth_uid;" json:"-" yaml:"-"`
-	AuthSrc        string     `gorm:"type:VARBINARY(64);column:auth_src;" json:"-" yaml:"-"`
-	WebDAV         string     `gorm:"size:16;column:webdav;" json:"WebDAV,omitempty" yaml:"WebDAV,omitempty"`
-	AvatarURL      string     `gorm:"type:VARBINARY(255);column:avatar_url;" json:"AvatarURL" yaml:"AvatarURL,omitempty"`
-	AvatarSrc      string     `gorm:"type:VARBINARY(64);column:avatar_src;" json:"AvatarSrc" yaml:"AvatarSrc,omitempty"`
-	UserCountry    string     `gorm:"type:VARBINARY(2);" json:"Country" yaml:"Country,omitempty"`
-	UserLocale     string     `gorm:"type:VARBINARY(64);" json:"Locale" yaml:"Locale,omitempty"`
-	TimeZone       string     `gorm:"type:VARBINARY(64);default:'';" json:"TimeZone" yaml:"TimeZone,omitempty"`
-	PlaceID        string     `gorm:"type:VARBINARY(42);index;default:'zz'" json:"PlaceID,omitempty" yaml:"-"`
-	PlaceSrc       string     `gorm:"type:VARBINARY(8);" json:"PlaceSrc,omitempty" yaml:"PlaceSrc,omitempty"`
-	CellID         string     `gorm:"type:VARBINARY(42);index;default:'zz'" json:"CellID" yaml:"CellID"`
-	SubjUID        string     `gorm:"type:VARBINARY(42);index;" json:"SubjUID" yaml:"SubjUID,omitempty"`
-	UserBio        string     `gorm:"size:255;" json:"Bio,omitempty" yaml:"Bio,omitempty"`
-	UserStatus     string     `gorm:"size:32;" json:"Status,omitempty" yaml:"Status,omitempty"`
-	UserURL        string     `gorm:"size:255;column:user_url" json:"URL,omitempty" yaml:"URL,omitempty"`
-	UserPhone      string     `gorm:"size:32;" json:"Phone,omitempty" yaml:"Phone,omitempty"`
-	FullName       string     `gorm:"size:128;" json:"FullName" yaml:"FullName,omitempty"`
-	DisplayName    string     `gorm:"size:64;" json:"DisplayName" yaml:"DisplayName,omitempty"`
-	UserAlias      string     `gorm:"size:64;" json:"Alias" yaml:"Alias,omitempty"`
-	ArtistName     string     `gorm:"size:64;" json:"ArtistName,omitempty" yaml:"ArtistName,omitempty"`
-	UserArtist     bool       `gorm:"default:false;" json:"Artist,omitempty" yaml:"Artist,omitempty"`
-	UserFavorite   bool       `gorm:"default:false;" json:"Favorite" yaml:"Favorite,omitempty"`
-	UserHidden     bool       `gorm:"default:false;" json:"Hidden" yaml:"Hidden,omitempty"`
-	UserPrivate    bool       `gorm:"default:false;" json:"Private" yaml:"Private,omitempty"`
-	UserExcluded   bool       `gorm:"default:false;" json:"Excluded" yaml:"Excluded,omitempty"`
-	CompanyName    string     `gorm:"size:128;" json:"CompanyName,omitempty" yaml:"CompanyName,omitempty"`
-	DepartmentName string     `gorm:"size:128;" json:"DepartmentName,omitempty" yaml:"DepartmentName,omitempty"`
-	JobTitle       string     `gorm:"size:64;" json:"JobTitle,omitempty" yaml:"JobTitle,omitempty"`
-	BusinessURL    string     `gorm:"size:255" json:"BusinessURL,omitempty" yaml:"BusinessURL,omitempty"`
-	BusinessPhone  string     `gorm:"size:32;" json:"BusinessPhone,omitempty" yaml:"BusinessPhone,omitempty"`
-	BusinessEmail  string     `gorm:"size:255;" json:"BusinessEmail,omitempty" yaml:"BusinessEmail,omitempty"`
-	BackupEmail    string     `gorm:"size:255;" json:"BackupEmail,omitempty" yaml:"BackupEmail,omitempty"`
-	BirthYear      int        `gorm:"default:-1;" json:"BirthYear" yaml:"BirthYear,omitempty"`
-	BirthMonth     int        `gorm:"default:-1;" json:"BirthMonth" yaml:"BirthMonth,omitempty"`
-	BirthDay       int        `gorm:"default:-1;" json:"BirthDay" yaml:"BirthDay,omitempty"`
-	FileRoot       string     `gorm:"type:VARBINARY(16);column:file_root;" json:"FileRoot,omitempty" yaml:"FileRoot,omitempty"`
-	FilePath       string     `gorm:"type:VARBINARY(500);column:file_path;" json:"FilePath,omitempty" yaml:"FilePath,omitempty"`
-	InviteToken    string     `gorm:"type:VARBINARY(32);" json:"-" yaml:"-"`
-	InvitedBy      string     `gorm:"type:VARBINARY(32);" json:"-" yaml:"-"`
-	DownloadToken  string     `gorm:"column:download_token;type:VARBINARY(128);" json:"-" yaml:"-"`
-	PreviewToken   string     `gorm:"column:preview_token;type:VARBINARY(128);" json:"-" yaml:"-"`
-	ResetToken     string     `gorm:"type:VARBINARY(64);" json:"-" yaml:"-"`
-	ConfirmToken   string     `gorm:"type:VARBINARY(64);" json:"-" yaml:"-"`
-	ConfirmedAt    *time.Time `json:"ConfirmedAt,omitempty" yaml:"ConfirmedAt,omitempty"`
-	TermsAccepted  *time.Time `json:"TermsAccepted,omitempty" yaml:"TermsAccepted,omitempty"`
-	LoginAttempts  int        `json:"-" yaml:"-"`
-	LoginAt        *time.Time `json:"-" yaml:"-"`
-	CreatedAt      time.Time  `json:"CreatedAt" yaml:"-"`
-	UpdatedAt      time.Time  `json:"UpdatedAt" yaml:"-"`
-	DeletedAt      *time.Time `sql:"index" json:"DeletedAt,omitempty" yaml:"-"`
+	ID            int           `gorm:"primary_key" json:"-" yaml:"-"`
+	UUID          string        `gorm:"type:VARBINARY(64);column:user_uuid;index;" json:"UUID,omitempty" yaml:"UUID,omitempty"`
+	UserUID       string        `gorm:"type:VARBINARY(42);column:user_uid;unique_index;" json:"UID" yaml:"UID"`
+	AuthProvider  string        `gorm:"type:VARBINARY(128);default:'';" json:"AuthProvider,omitempty" yaml:"AuthProvider,omitempty"`
+	AuthID        string        `gorm:"type:VARBINARY(128);index;default:'';" json:"AuthID,omitempty" yaml:"AuthID,omitempty"`
+	UserName      string        `gorm:"size:64;index;" json:"Name" yaml:"Name,omitempty"`
+	DisplayName   string        `gorm:"size:200;" json:"DisplayName" yaml:"DisplayName,omitempty"`
+	UserEmail     string        `gorm:"size:255;index;" json:"Email" yaml:"Email,omitempty"`
+	BackupEmail   string        `gorm:"size:255;" json:"BackupEmail,omitempty" yaml:"BackupEmail,omitempty"`
+	UserRole      string        `gorm:"size:64;default:'';" json:"Role,omitempty" yaml:"Role,omitempty"`
+	UserAttr      string        `gorm:"size:1024;" json:"Attr,omitempty" yaml:"Attr,omitempty"`
+	SuperAdmin    bool          `json:"SuperAdmin,omitempty" yaml:"SuperAdmin,omitempty"`
+	CanLogin      bool          `json:"CanLogin,omitempty" yaml:"CanLogin,omitempty"`
+	LoginAt       *time.Time    `json:"LoginAt,omitempty" yaml:"LoginAt,omitempty"`
+	ExpiresAt     *time.Time    `sql:"index" json:"ExpiresAt,omitempty" yaml:"ExpiresAt,omitempty"`
+	WebDAV        bool          `gorm:"column:webdav;" json:"WebDAV,omitempty" yaml:"WebDAV,omitempty"`
+	BasePath      string        `gorm:"type:VARBINARY(1024);" json:"BasePath,omitempty" yaml:"BasePath,omitempty"`
+	UploadPath    string        `gorm:"type:VARBINARY(1024);" json:"UploadPath,omitempty" yaml:"UploadPath,omitempty"`
+	CanInvite     bool          `json:"CanInvite,omitempty" yaml:"CanInvite,omitempty"`
+	InviteToken   string        `gorm:"type:VARBINARY(64);index;" json:"-" yaml:"-"`
+	InvitedBy     string        `gorm:"size:64;" json:"-" yaml:"-"`
+	VerifyToken   string        `gorm:"type:VARBINARY(64);" json:"-" yaml:"-"`
+	VerifiedAt    *time.Time    `json:"VerifiedAt,omitempty" yaml:"VerifiedAt,omitempty"`
+	ConsentAt     *time.Time    `json:"ConsentAt,omitempty" yaml:"ConsentAt,omitempty"`
+	BornAt        *time.Time    `sql:"index" json:"BornAt,omitempty" yaml:"BornAt,omitempty"`
+	UserDetails   *UserDetails  `gorm:"PRELOAD:true;foreignkey:UserUID;association_foreignkey:UserUID;" json:"Details,omitempty" yaml:"Details,omitempty"`
+	UserSettings  *UserSettings `gorm:"PRELOAD:true;foreignkey:UserUID;association_foreignkey:UserUID;" json:"Settings,omitempty" yaml:"Settings,omitempty"`
+	UserShares    UserShares    `gorm:"-" json:"Shares,omitempty" yaml:"Shares,omitempty"`
+	ResetToken    string        `gorm:"type:VARBINARY(64);" json:"-" yaml:"-"`
+	PreviewToken  string        `gorm:"type:VARBINARY(64);column:preview_token;" json:"-" yaml:"-"`
+	DownloadToken string        `gorm:"type:VARBINARY(64);column:download_token;" json:"-" yaml:"-"`
+	Thumb         string        `gorm:"type:VARBINARY(128);index;default:'';" json:"Thumb" yaml:"Thumb,omitempty"`
+	ThumbSrc      string        `gorm:"type:VARBINARY(8);default:'';" json:"ThumbSrc" yaml:"ThumbSrc,omitempty"`
+	RefID         string        `gorm:"type:VARBINARY(16);" json:"-" yaml:"-"`
+	CreatedAt     time.Time     `json:"CreatedAt" yaml:"-"`
+	UpdatedAt     time.Time     `json:"UpdatedAt" yaml:"-"`
+	DeletedAt     *time.Time    `sql:"index" json:"DeletedAt,omitempty" yaml:"-"`
 }
 
-// TableName returns the entity database table name.
+// TableName returns the entity table name.
 func (User) TableName() string {
 	return "auth_users"
 }
 
+// NewUser creates a new user and returns it.
+func NewUser() (m *User) {
+	uid := rnd.GenerateUID(UserUID)
+
+	return &User{
+		UserUID:       uid,
+		UserDetails:   NewUserDetails(uid),
+		UserSettings:  NewUserSettings(uid),
+		PreviewToken:  GenerateToken(),
+		DownloadToken: GenerateToken(),
+		RefID:         rnd.RefID(UserPrefix),
+	}
+}
+
+// FindUser returns the matching user or nil if it was not found.
+func FindUser(find User) *User {
+	m := &User{}
+
+	// Build query.
+	stmt := UnscopedDb()
+	if find.ID != 0 {
+		stmt = stmt.Where("id = ?", find.ID)
+	} else if rnd.IsUID(find.UserUID, UserUID) {
+		stmt = stmt.Where("user_uid = ?", find.UserUID)
+	} else if find.UserName != "" {
+		stmt = stmt.Where("user_name = ?", find.UserName)
+	} else if find.UserEmail != "" {
+		stmt = stmt.Where("user_email = ?", find.UserEmail)
+	} else {
+		return nil
+	}
+
+	// Find matching record.
+	if err := stmt.First(m).Error; err != nil {
+		return nil
+	}
+
+	// Fetch related records.
+	return m.LoadRelated()
+}
+
+// FirstOrCreateUser returns an existing record, inserts a new record, or returns nil in case of an error.
+func FirstOrCreateUser(m *User) *User {
+	if m == nil {
+		return nil
+	}
+
+	if found := FindUser(*m); found != nil {
+		return found
+	} else if err := m.Create(); err != nil {
+		event.AuditErr([]string{"user", "failed to create", "%s"}, err)
+		return nil
+	} else {
+		return m
+	}
+}
+
+// FindUserByName returns the matching user or nil if it was not found.
+func FindUserByName(name string) *User {
+	name = clean.Username(name)
+	if name == "" {
+		return nil
+	}
+
+	return FindUser(User{UserName: name})
+}
+
+// FindUserByUID returns the matching user or nil if it was not found.
+func FindUserByUID(uid string) *User {
+	if rnd.InvalidUID(uid, UserUID) {
+		return nil
+	}
+
+	return FindUser(User{UserUID: uid})
+}
+
+// UID returns the unique id as string.
+func (m *User) UID() string {
+	if m == nil {
+		return ""
+	}
+
+	return m.UserUID
+}
+
+// SameUID checks if the given uid matches the own uid.
+func (m *User) SameUID(uid string) bool {
+	if m == nil {
+		return false
+	} else if m.UserUID == "" || rnd.InvalidUID(uid, UserUID) {
+		return false
+	}
+
+	return m.UserUID == uid
+}
+
 // InitAccount sets the name and password of the initial admin account.
-func (m *User) InitAccount(login, password string) (updated bool) {
-	if !m.IsRegistered() {
-		log.Warn("only registered users can change their password")
+func (m *User) InitAccount(initName, initPasswd string) (updated bool) {
+	// User must exist and the password must not be empty.
+	initPasswd = strings.TrimSpace(initPasswd)
+	if rnd.InvalidUID(m.UserUID, UserUID) || initPasswd == "" {
+		return false
+	} else if !m.CanLogIn() {
+		log.Warnf("users: %s account is not allowed to log in", m.String())
+	}
+
+	// Abort if user has a password.
+	existingPasswd := FindPassword(m.UserUID)
+
+	if existingPasswd != nil {
 		return false
 	}
 
-	// Password must not be empty.
-	if password == "" {
-		return false
-	}
-
-	existing := FindPassword(m.UserUID)
-
-	if existing != nil {
-		return false
-	}
-
-	pw := NewPassword(m.UserUID, password)
+	// Set initial password.
+	initialPasswd := NewPassword(m.UserUID, initPasswd)
 
 	// Save password.
-	if err := pw.Save(); err != nil {
-		log.Error(err)
+	if err := initialPasswd.Save(); err != nil {
+		event.AuditErr([]string{"user %s", "failed to change password", "%s"}, m.RefID, err)
 		return false
 	}
 
-	// Change username.
-	if err := m.UpdateName(login); err != nil {
-		log.Debugf("auth: cannot change username of %s to %s (%s)", clean.Log(m.UserUID), clean.LogQuote(login), err.Error())
+	// Change username if needed.
+	if initName != "" && initName != m.UserName {
+		if err := m.UpdateName(initName); err != nil {
+			event.AuditErr([]string{"user %s", "failed to change username to %s", "%s"}, m.RefID, clean.Log(initName), err)
+		}
 	}
 
 	return true
 }
 
 // Create new entity in the database.
-func (m *User) Create() error {
-	return Db().Create(m).Error
+func (m *User) Create() (err error) {
+	err = Db().Create(m).Error
+
+	if err == nil {
+		m.SaveRelated()
+	}
+
+	return err
 }
 
-// Save entity properties.
-func (m *User) Save() error {
-	return Db().Save(m).Error
-}
+// Save updates the record in the database or inserts a new record if it does not already exist.
+func (m *User) Save() (err error) {
+	m.GenerateTokens(false)
 
-// Updates multiple properties in the database.
-func (m *User) Updates(values interface{}) error {
-	return UnscopedDb().Model(m).Updates(values).Error
-}
+	err = Db().Save(m).Error
 
-// BeforeCreate creates a random UID if needed before inserting a new row to the database.
-func (m *User) BeforeCreate(scope *gorm.Scope) error {
-	m.UserSlug = m.GenerateSlug()
-
-	if err := scope.SetColumn("UserSlug", m.UserSlug); err != nil {
-		return err
+	if err == nil {
+		m.SaveRelated()
 	}
 
-	if rnd.ValidID(m.UserUID, 'u') {
-		return nil
-	}
-
-	m.UserUID = rnd.GenerateUID('u')
-
-	return scope.SetColumn("UserUID", m.UserUID)
-}
-
-// GenerateSlug returns an updated slug.
-func (m *User) GenerateSlug() string {
-	if l := clean.Login(m.Username); l != "" {
-		return txt.Slug(l)
-	} else if m.UserSlug == "" {
-		return rnd.GenerateToken(8)
-	}
-
-	return m.UserSlug
-}
-
-// FirstOrCreateUser returns an existing row, inserts a new row, or nil in case of errors.
-func FirstOrCreateUser(m *User) *User {
-	result := User{}
-
-	m.UserSlug = m.GenerateSlug()
-
-	if err := Db().Where("id = ? OR (user_uid = ? AND user_uid <> '') OR (user_slug = ? AND user_slug <> '') OR (username = ? AND username <> '')", m.ID, m.UserUID, m.UserSlug, m.Username).First(&result).Error; err == nil {
-		return &result
-	} else if err := m.Create(); err != nil {
-		log.Debugf("user: %s", err)
-		return nil
-	}
-
-	return m
-}
-
-// FindUserByLogin returns an existing user or nil if not found.
-func FindUserByLogin(s string) *User {
-	if s == "" {
-		return nil
-	}
-
-	result := User{}
-
-	// Find by Login.
-	if name := clean.Login(s); name == "" {
-		return nil
-	} else if err := Db().Where("username = ?", name).First(&result).Error; err == nil {
-		return &result
-	} else {
-		log.Debugf("username %s not found", clean.LogQuote(name))
-	}
-
-	// Find by Email.
-	if email := clean.Email(s); email == "" {
-		return nil
-	} else if err := Db().Where("email = ?", email).First(&result).Error; err == nil {
-		return &result
-	} else {
-		log.Debugf("email %s not found", clean.LogQuote(email))
-	}
-
-	return nil
-}
-
-// FindUserByUID returns an existing user or nil if not found.
-func FindUserByUID(uid string) *User {
-	if uid == "" {
-		return nil
-	}
-
-	result := User{}
-
-	if err := Db().Where("user_uid = ?", uid).First(&result).Error; err == nil {
-		return &result
-	} else {
-		log.Debugf("user uid %s not found", clean.LogQuote(uid))
-		return nil
-	}
+	return err
 }
 
 // Delete marks the entity as deleted.
@@ -237,7 +247,7 @@ func (m *User) Delete() error {
 	return Db().Delete(m).Error
 }
 
-// Deleted tests if the entity is marked as deleted.
+// Deleted checks if the user account has been deleted.
 func (m *User) Deleted() bool {
 	if m.DeletedAt == nil {
 		return false
@@ -246,68 +256,157 @@ func (m *User) Deleted() bool {
 	return !m.DeletedAt.IsZero()
 }
 
+// LoadRelated loads related settings and details.
+func (m *User) LoadRelated() *User {
+	m.Settings()
+	m.Details()
+
+	return m
+}
+
+// SaveRelated saves related settings and details.
+func (m *User) SaveRelated() *User {
+	if err := m.Settings().Save(); err != nil {
+		event.AuditErr([]string{"user %s", "failed to save settings", "%s"}, m.RefID, err)
+	}
+	if err := m.Details().Save(); err != nil {
+		event.AuditErr([]string{"user %s", "failed to save details", "%s"}, m.RefID, err)
+	}
+
+	return m
+}
+
+// Updates multiple properties in the database.
+func (m *User) Updates(values interface{}) error {
+	return UnscopedDb().Model(m).Updates(values).Error
+}
+
+// BeforeCreate sets a random UID if needed before inserting a new row to the database.
+func (m *User) BeforeCreate(scope *gorm.Scope) error {
+	if m.UserSettings != nil {
+		m.UserSettings.UserUID = m.UserUID
+	}
+
+	if m.UserDetails != nil {
+		m.UserDetails.UserUID = m.UserUID
+	}
+
+	m.GenerateTokens(false)
+
+	if rnd.InvalidRefID(m.RefID) {
+		m.RefID = rnd.RefID(UserPrefix)
+		Log("user", "set ref id", scope.SetColumn("RefID", m.RefID))
+	}
+
+	if rnd.IsUnique(m.UserUID, UserUID) {
+		return nil
+	}
+
+	m.UserUID = rnd.GenerateUID(UserUID)
+	return scope.SetColumn("UserUID", m.UserUID)
+}
+
+// Expired checks if the user account has expired.
+func (m *User) Expired() bool {
+	if m.ExpiresAt == nil {
+		return false
+	}
+
+	return m.ExpiresAt.Before(time.Now())
+}
+
+// Disabled checks if the user account has been deleted or has expired.
+func (m *User) Disabled() bool {
+	return m.Deleted() || m.Expired() && !m.SuperAdmin
+}
+
+// CanLogIn checks if the user is allowed to log in and use the web UI.
+func (m *User) CanLogIn() bool {
+	if !m.CanLogin && !m.SuperAdmin || m.ID <= 0 || m.UserName == "" {
+		return false
+	} else if role := m.AclRole(); m.Disabled() || role == acl.RoleUnknown {
+		return false
+	} else {
+		return acl.Resources.Allow(acl.ResourceConfig, role, acl.AccessOwn)
+	}
+
+}
+
+// CanUseWebDAV checks whether the user is allowed to use WebDAV to synchronize files.
+func (m *User) CanUseWebDAV() bool {
+	if role := m.AclRole(); m.Disabled() || !m.WebDAV || m.ID <= 0 || m.UserName == "" || role == acl.RoleUnknown {
+		return false
+	} else {
+		return acl.Resources.Allow(acl.ResourcePhotos, role, acl.ActionUpload)
+	}
+}
+
+// CanUpload checks if the user is allowed to upload files.
+func (m *User) CanUpload() bool {
+	if role := m.AclRole(); m.Disabled() || role == acl.RoleUnknown {
+		return false
+	} else {
+		return acl.Resources.Allow(acl.ResourcePhotos, role, acl.ActionUpload)
+	}
+}
+
+// SetBasePath changes the user's base folder.
+func (m *User) SetBasePath(dir string) *User {
+	m.BasePath = clean.UserPath(dir)
+
+	return m
+}
+
+// SetUploadPath changes the user's upload folder.
+func (m *User) SetUploadPath(dir string) *User {
+	if m.BasePath == "" {
+		m.UploadPath = clean.UserPath(dir)
+	} else {
+		m.UploadPath = path.Join(m.BasePath, clean.UserPath(dir))
+	}
+
+	return m
+}
+
 // String returns an identifier that can be used in logs.
 func (m *User) String() string {
-	if n := m.UserName(); n != "" {
+	if n := m.Name(); n != "" {
 		return clean.Log(n)
-	} else if n = m.RealName(); n != "" {
+	} else if n = m.FullName(); n != "" {
 		return clean.Log(n)
-	} else if m.UserSlug != "" {
-		return clean.Log(m.UserSlug)
 	}
 
 	return clean.Log(m.UserUID)
 }
 
-// UserName returns the login username.
-func (m *User) UserName() string {
-	return clean.Login(m.Username)
+// Name returns the user's login name for authentication.
+func (m *User) Name() string {
+	return clean.Username(m.UserName)
 }
 
-// UserEmail returns the login email address.
-func (m *User) UserEmail() string {
-	switch {
-	case m.Email != "":
-		return m.Email
-	case m.BackupEmail != "":
-		return m.BackupEmail
-	case m.BusinessEmail != "":
-		return m.BusinessEmail
-	default:
-		return ""
+// SetName sets the login username to the specified string.
+func (m *User) SetName(login string) (err error) {
+	if m.ID < 0 {
+		return fmt.Errorf("system users cannot be modified")
 	}
-}
 
-// RealName returns the user' real name if known.
-func (m *User) RealName() string {
-	switch {
-	case m.FullName != "":
-		return m.FullName
-	case m.DisplayName != "":
-		return m.DisplayName
-	case m.ArtistName != "":
-		return m.ArtistName
-	default:
-		return ""
-	}
-}
-
-// SetUsername sets the login username to the specified string.
-func (m *User) SetUsername(login string) (err error) {
-	login = clean.Login(login)
+	login = clean.Username(login)
 
 	// Empty?
 	if login == "" {
-		return fmt.Errorf("new username is empty")
+		return fmt.Errorf("username is empty")
+	} else if m.UserName == login {
+		return nil
+	} else if m.UserName != "" && m.ID != 1 {
+		return fmt.Errorf("username cannot be changed")
 	}
 
 	// Update username and slug.
-	m.Username = login
-	m.UserSlug = m.GenerateSlug()
+	m.UserName = login
 
 	// Update display name.
-	if m.DisplayName == "" || m.DisplayName == AdminDisplayName {
-		m.DisplayName = clean.Name(login)
+	if m.DisplayName == "" || m.DisplayName == AdminDisplayName && m.ID == 1 {
+		m.DisplayName = clean.NameCapitalized(login)
 	}
 
 	return nil
@@ -315,16 +414,30 @@ func (m *User) SetUsername(login string) (err error) {
 
 // UpdateName changes the login username and saves it to the database.
 func (m *User) UpdateName(login string) (err error) {
-	if err = m.SetUsername(login); err != nil {
+	if err = m.SetName(login); err != nil {
 		return err
 	}
 
 	// Save to database.
 	return m.Updates(Values{
-		"UserSlug":    m.UserSlug,
-		"Username":    m.Username,
+		"UserName":    m.UserName,
 		"DisplayName": m.DisplayName,
 	})
+}
+
+// Email returns the user's login email for authentication.
+func (m *User) Email() string {
+	return clean.Email(m.UserEmail)
+}
+
+// FullName returns the name of the user for display purposes.
+func (m *User) FullName() string {
+	switch {
+	case m.DisplayName != "":
+		return m.DisplayName
+	default:
+		return m.UserName
+	}
 }
 
 // AclRole returns the user role for ACL permission checks.
@@ -335,48 +448,109 @@ func (m *User) AclRole() acl.Role {
 	case m.SuperAdmin:
 		return acl.RoleAdmin
 	case role == "":
-		return acl.RoleDefault
-	case acl.RoleAdmin.Equal(role):
-		return acl.RoleAdmin
-	case acl.RoleEditor.Equal(role):
-		return acl.RoleEditor
-	case acl.RoleViewer.Equal(role):
-		return acl.RoleViewer
-	case acl.RoleGuest.Equal(role):
-		return acl.RoleGuest
+		return acl.RoleUnknown
+	case m.UserName == "":
+		return acl.RoleVisitor
 	default:
-		return acl.Role(role)
+		return acl.ValidRoles[role]
 	}
+}
+
+// Settings returns the user settings and initializes them if necessary.
+func (m *User) Settings() *UserSettings {
+	if m.UserSettings != nil {
+		m.UserSettings.UserUID = m.UserUID
+		return m.UserSettings
+	} else if m.UID() == "" {
+		m.UserSettings = &UserSettings{}
+		return m.UserSettings
+	} else if err := CreateUserSettings(m); err != nil {
+		m.UserSettings = NewUserSettings(m.UserUID)
+	}
+
+	return m.UserSettings
+}
+
+// Details returns user profile information and initializes it if needed.
+func (m *User) Details() *UserDetails {
+	if m.UserDetails != nil {
+		m.UserDetails.UserUID = m.UserUID
+		return m.UserDetails
+	} else if m.UID() == "" {
+		m.UserDetails = &UserDetails{}
+		return m.UserDetails
+	} else if err := CreateUserDetails(m); err != nil {
+		m.UserDetails = NewUserDetails(m.UserUID)
+	}
+
+	return m.UserDetails
+}
+
+// Attr returns optional user account attributes as sanitized string.
+// Example: https://learn.microsoft.com/en-us/troubleshoot/windows-server/identity/useraccountcontrol-manipulate-account-properties
+func (m *User) Attr() string {
+	return clean.Attr(m.UserAttr)
 }
 
 // IsRegistered checks if the user is registered e.g. has a username.
 func (m *User) IsRegistered() bool {
-	return m.UserName() != "" && rnd.EntityUID(m.UserUID, 'u')
+	if m == nil {
+		return false
+	}
+
+	return m.UserName != "" && rnd.IsUID(m.UserUID, UserUID) && !m.IsVisitor()
+}
+
+// NotRegistered checks if the user is not registered with an own account.
+func (m *User) NotRegistered() bool {
+	return !m.IsRegistered()
 }
 
 // IsAdmin checks if the user is an admin with username.
 func (m *User) IsAdmin() bool {
-	return m.IsRegistered() && m.AclRole() == acl.RoleAdmin
+	if m == nil {
+		return false
+	}
+
+	return m.IsRegistered() && (m.SuperAdmin || m.AclRole() == acl.RoleAdmin)
 }
 
-// IsEditor checks if the user is an editor with username.
-func (m *User) IsEditor() bool {
-	return m.IsRegistered() && m.AclRole() == acl.RoleEditor
+// IsVisitor checks if the user is a sharing link visitor.
+func (m *User) IsVisitor() bool {
+	return m.AclRole() == acl.RoleVisitor || m.ID == Visitor.ID
 }
 
-// IsViewer checks if the user is a viewer with username.
-func (m *User) IsViewer() bool {
-	return m.IsRegistered() && m.AclRole() == acl.RoleViewer
+// IsUnknown checks if the user is unknown.
+func (m *User) IsUnknown() bool {
+	return !rnd.IsUID(m.UserUID, UserUID) || m.ID == UnknownUser.ID || m.UserUID == UnknownUser.UserUID
 }
 
-// IsGuest checks if the user is a guest.
-func (m *User) IsGuest() bool {
-	return m.AclRole() == acl.RoleGuest
-}
+// DeleteSessions deletes all active user sessions except those passed as argument.
+func (m *User) DeleteSessions(omit []string) (deleted int) {
+	if m.UserUID == "" {
+		return 0
+	}
 
-// IsAnonymous checks if the user is unknown.
-func (m *User) IsAnonymous() bool {
-	return !rnd.EntityUID(m.UserUID, 'u') || m.ID == UnknownUser.ID || m.UserUID == UnknownUser.UserUID
+	// Find all user sessions except the session ids passed as argument.
+	stmt := Db().Where("user_uid = ? AND id NOT IN (?)", m.UserUID, omit)
+	sess := Sessions{}
+
+	if err := stmt.Find(&sess).Error; err != nil {
+		event.AuditErr([]string{"user %s", "failed to invalidate sessions", "%s"}, m.RefID, err)
+		return 0
+	}
+
+	// This will also remove the session from the cache.
+	for _, s := range sess {
+		if err := s.Delete(); err != nil {
+			event.AuditWarn([]string{"user %s", "failed to invalidate session %s", "%s"}, m.RefID, clean.Log(s.RefID), err)
+		} else {
+			deleted++
+		}
+	}
+
+	// Return number of deleted sessions for logs.
+	return deleted
 }
 
 // SetPassword sets a new password stored as hash.
@@ -385,84 +559,100 @@ func (m *User) SetPassword(password string) error {
 		return fmt.Errorf("only registered users can change their password")
 	}
 
-	if len(password) < PasswordLength {
-		return fmt.Errorf("password must have at least %d characters", PasswordLength)
+	if len(password) < LenPasswordMin {
+		return fmt.Errorf("password must have at least %d characters", LenPasswordMin)
 	}
 
 	pw := NewPassword(m.UserUID, password)
 
-	return pw.Save()
+	if err := pw.Save(); err != nil {
+		return err
+	}
+
+	return m.RegenerateTokens()
 }
 
-// InvalidPassword returns true if the given password does not match the hash.
-func (m *User) InvalidPassword(password string) bool {
+// HasPassword checks if the user has the specified password and the account is registered.
+func (m *User) HasPassword(s string) bool {
+	return !m.WrongPassword(s)
+}
+
+// WrongPassword checks if the given password is incorrect or the account is not registered.
+func (m *User) WrongPassword(s string) bool {
+	// Registered user?
 	if !m.IsRegistered() {
-		log.Warn("only registered users can change their password")
+		log.Warn("only registered users can log in")
 		return true
 	}
 
-	if password == "" {
+	// Empty password?
+	if s == "" {
 		return true
 	}
 
-	time.Sleep(time.Second * 5 * time.Duration(m.LoginAttempts))
-
+	// Fetch password.
 	pw := FindPassword(m.UserUID)
 
+	// Found?
 	if pw == nil {
 		return true
 	}
 
-	if pw.InvalidPassword(password) {
-		if err := Db().Model(m).UpdateColumn("login_attempts", gorm.Expr("login_attempts + ?", 1)).Error; err != nil {
-			log.Errorf("user: %s (update login attempts)", err)
-		}
-
+	// Invalid?
+	if pw.IsWrong(s) {
 		return true
-	}
-
-	if err := Db().Model(m).Updates(map[string]interface{}{"login_attempts": 0, "login_at": TimeStamp()}).Error; err != nil {
-		log.Errorf("user: %s (update last login)", err)
 	}
 
 	return false
 }
 
-// Validate Makes sure username and email are unique and meet requirements. Returns error if any property is invalid
-func (m *User) Validate() error {
-	if m.UserName() == "" {
+// Validate checks if username, email and role are valid and returns an error otherwise.
+func (m *User) Validate() (err error) {
+	// Empty name?
+	if m.Name() == "" {
 		return errors.New("username must not be empty")
 	}
 
-	if len(m.UserName()) < UsernameLength {
-		return fmt.Errorf("username must have at least %d characters", UsernameLength)
+	// Name too short?
+	if len(m.Name()) < LenNameMin {
+		return fmt.Errorf("username must have at least %d characters", LenNameMin)
 	}
 
-	var err error
-	var resultName = User{}
+	// Validate user role.
+	if acl.ValidRoles[m.UserRole] == "" {
+		return fmt.Errorf("role %s is invalid", clean.LogQuote(m.UserRole))
+	}
 
-	if err = Db().Where("username = ? AND id <> ?", m.Username, m.ID).First(&resultName).Error; err == nil {
-		return errors.New("username already exists")
+	// Check if the username is unique.
+	var duplicate = User{}
+
+	if err = Db().
+		Where("user_name = ? AND id <> ?", m.UserName, m.ID).
+		First(&duplicate).Error; err == nil {
+		return fmt.Errorf("username %s already exists", clean.LogQuote(m.UserName))
 	} else if err != gorm.ErrRecordNotFound {
 		return err
 	}
 
-	// stop here if no email is provided
-	if m.Email == "" {
+	// Skip email check?
+	if m.UserEmail == "" {
 		return nil
 	}
 
-	// validate email address.
-	if a, err := mail.ParseAddress(m.Email); err != nil {
-		return err
+	// Parse and validate email address.
+	if a, err := mail.ParseAddress(m.UserEmail); err != nil {
+		return fmt.Errorf("email %s is invalid", clean.LogQuote(m.UserEmail))
+	} else if email := a.Address; !strings.ContainsRune(email, '.') {
+		return fmt.Errorf("email %s does not have a fully qualified domain", clean.LogQuote(m.UserEmail))
 	} else {
-		m.Email = a.Address // make sure email will be used without name.
+		m.UserEmail = email
 	}
 
-	var resultMail = User{}
-
-	if err = Db().Where("email = ? AND id <> ?", m.Email, m.ID).First(&resultMail).Error; err == nil {
-		return errors.New("email already exists")
+	// Check if the email is unique.
+	if err = Db().
+		Where("user_email = ? AND id <> ?", m.UserEmail, m.ID).
+		First(&duplicate).Error; err == nil {
+		return fmt.Errorf("email %s already exists", clean.Log(m.UserEmail))
 	} else if err != gorm.ErrRecordNotFound {
 		return err
 	}
@@ -470,31 +660,210 @@ func (m *User) Validate() error {
 	return nil
 }
 
-// CreateWithPassword Creates User with Password in db transaction.
-func CreateWithPassword(uc form.UserCreate) error {
-	u := &User{
-		Username:   uc.Username,
-		Email:      uc.Email,
-		SuperAdmin: true,
+// SetFormValues sets the values specified in the form.
+func (m *User) SetFormValues(frm form.User) *User {
+	m.UserName = frm.Name()
+	m.UserEmail = frm.Email()
+	m.DisplayName = frm.DisplayName
+	m.SuperAdmin = frm.SuperAdmin
+	m.CanLogin = frm.CanLogin
+	m.WebDAV = frm.WebDAV
+	m.UserRole = frm.Role()
+	m.UserAttr = frm.Attr()
+	m.SetBasePath(frm.BasePath)
+	m.SetUploadPath(frm.UploadPath)
+
+	return m
+}
+
+// GenerateTokens generates preview and download tokens as needed.
+func (m *User) GenerateTokens(force bool) *User {
+	if m.ID < 0 {
+		return m
 	}
 
-	if len(uc.Password) < PasswordLength {
-		return fmt.Errorf("password must have at least %d characters", PasswordLength)
+	if m.PreviewToken == "" || force {
+		m.PreviewToken = GenerateToken()
 	}
 
-	if err := u.Validate(); err != nil {
-		return err
+	if m.DownloadToken == "" || force {
+		m.DownloadToken = GenerateToken()
 	}
 
-	return Db().Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(u).Error; err != nil {
-			return err
-		}
-		pw := NewPassword(u.UserUID, uc.Password)
-		if err := tx.Create(&pw).Error; err != nil {
-			return err
-		}
-		log.Infof("added user %s with uid %s", clean.Log(u.UserName()), clean.Log(u.UserUID))
+	return m
+}
+
+// RegenerateTokens replaces the existing preview and download tokens.
+func (m *User) RegenerateTokens() error {
+	if m.ID < 0 {
 		return nil
-	})
+	}
+
+	m.GenerateTokens(true)
+
+	return m.Updates(Values{"PreviewToken": m.PreviewToken, "DownloadToken": m.DownloadToken})
+}
+
+// RefreshShares updates the list of shares.
+func (m *User) RefreshShares() *User {
+	m.UserShares = FindUserShares(m.UID())
+	return m
+}
+
+// NoShares checks if the user has no shares yet.
+func (m *User) NoShares() bool {
+	if !m.IsRegistered() {
+		return true
+	}
+
+	return m.UserShares.Empty()
+}
+
+// HasShares checks if the user has any shares.
+func (m *User) HasShares() bool {
+	return !m.NoShares()
+}
+
+// HasShare if a uid was shared with the user.
+func (m *User) HasShare(uid string) bool {
+	if !m.IsRegistered() || m.NoShares() {
+		return false
+	}
+
+	return m.UserShares.Contains(uid)
+}
+
+// SharedUIDs returns shared entity UIDs.
+func (m *User) SharedUIDs() UIDs {
+	if m.IsRegistered() && m.UserShares.Empty() {
+		m.RefreshShares()
+	}
+
+	return m.UserShares.UIDs()
+}
+
+// RedeemToken updates shared entity UIDs using the specified token.
+func (m *User) RedeemToken(token string) (n int) {
+	if !m.IsRegistered() {
+		return 0
+	}
+
+	// Find links.
+	links := FindValidLinks(token, "")
+
+	// Found?
+	if n = len(links); n == 0 {
+		return n
+	}
+
+	// Find shares.
+	for _, link := range links {
+		if found := FindUserShare(UserShare{UserUID: m.UID(), ShareUID: link.ShareUID}); found == nil {
+			share := NewUserShare(m.UID(), link.ShareUID, link.Perm, link.ExpiresAt())
+			share.LinkUID = link.LinkUID
+			share.Comment = link.Comment
+
+			if err := share.Save(); err != nil {
+				event.AuditErr([]string{"user %s", "token %s", "failed to redeem shares", "%s"}, m.RefID, clean.Log(token), err)
+			} else {
+				link.Redeem()
+			}
+		} else if err := found.UpdateLink(link); err != nil {
+			event.AuditErr([]string{"user %s", "token %s", "failed to update shares", "%s"}, m.RefID, clean.Log(token), err)
+		}
+	}
+
+	return n
+}
+
+// Form returns a populated user form to perform changes.
+func (m *User) Form() (form.User, error) {
+	frm := form.User{UserDetails: &form.UserDetails{}}
+
+	if err := deepcopier.Copy(m).To(&frm); err != nil {
+		return frm, err
+	}
+
+	if err := deepcopier.Copy(m.UserDetails).To(frm.UserDetails); err != nil {
+		return frm, err
+	}
+
+	return frm, nil
+}
+
+// SaveForm updates the entity using form data and stores it in the database.
+func (m *User) SaveForm(f form.User) error {
+	if m.UserName == "" || m.ID <= 0 {
+		return fmt.Errorf("system users cannot be updated")
+	}
+
+	// Ignore details if not set.
+	if f.UserDetails == nil {
+		// Ignore.
+	} else if err := deepcopier.Copy(f.UserDetails).To(m.UserDetails); err != nil {
+		return err
+	} else {
+		m.UserDetails.UserAbout = strings.TrimSpace(m.UserDetails.UserAbout)
+		m.UserDetails.UserBio = strings.TrimSpace(m.UserDetails.UserBio)
+	}
+
+	// Sanitize display name.
+	if n := clean.Name(f.DisplayName); n != "" && n != m.DisplayName {
+		m.SetDisplayName(n)
+	}
+
+	// Sanitize email address.
+	if email := clean.Email(f.UserEmail); email != "" && email != m.UserEmail {
+		m.UserEmail = email
+		m.VerifiedAt = nil
+		m.VerifyToken = GenerateToken()
+	}
+
+	return m.Save()
+}
+
+// SetDisplayName sets a new display name and, if possible, splits it into its components.
+func (m *User) SetDisplayName(name string) *User {
+	name = clean.Name(name)
+
+	// Empty?
+	if name == "" {
+		return m
+	}
+
+	m.DisplayName = name
+
+	d := m.Details()
+
+	if SrcPriority[SrcAuto] < SrcPriority[d.NameSrc] {
+		return m
+	}
+
+	// Try to parse name into components.
+	n := txt.ParseName(name)
+
+	d.NameTitle = n.Title
+	d.GivenName = n.Given
+	d.MiddleName = n.Middle
+	d.FamilyName = n.Family
+	d.NameSuffix = n.Suffix
+	d.NickName = n.Nick
+
+	return m
+}
+
+// SetAvatar updates the user avatar image.
+func (m *User) SetAvatar(thumb, thumbSrc string) error {
+	if m.UserName == "" || m.ID <= 0 {
+		return fmt.Errorf("system user avatars cannot be changed")
+	}
+
+	if SrcPriority[thumbSrc] < SrcPriority[m.ThumbSrc] && m.Thumb != "" {
+		return fmt.Errorf("no permission to change avatar")
+	}
+
+	m.Thumb = thumb
+	m.ThumbSrc = thumbSrc
+
+	return m.Updates(Values{"Thumb": m.Thumb, "ThumbSrc": m.ThumbSrc})
 }
