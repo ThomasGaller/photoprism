@@ -409,21 +409,21 @@ var Flags = CliFlags{
 		}, Tags: []string{EnvSponsor}}, {
 		Flag: cli.StringSliceFlag{
 			Name:   "trusted-proxy",
-			Usage:  "`CIDR` range from which IP and HTTPS proxy headers can be trusted",
+			Usage:  "`CIDR` range from which reverse proxy headers can be trusted",
 			Value:  &cli.StringSlice{header.CidrDockerInternal},
 			EnvVar: "PHOTOPRISM_TRUSTED_PROXY",
 		}}, {
 		Flag: cli.StringSliceFlag{
-			Name:   "https-proxy-header",
+			Name:   "proxy-proto-header",
 			Usage:  "proxy protocol header `NAME`",
 			Value:  &cli.StringSlice{header.ForwardedProto},
-			EnvVar: "PHOTOPRISM_HTTPS_PROXY_HEADER",
+			EnvVar: "PHOTOPRISM_PROXY_PROTO_HEADER",
 		}}, {
 		Flag: cli.StringSliceFlag{
-			Name:   "https-proxy-proto",
+			Name:   "proxy-proto-https",
 			Usage:  "forwarded HTTPS protocol `NAME`",
 			Value:  &cli.StringSlice{header.ProtoHttps},
-			EnvVar: "PHOTOPRISM_HTTPS_PROXY_PROTO",
+			EnvVar: "PHOTOPRISM_PROXY_PROTO_HTTPS",
 		}}, {
 		Flag: cli.StringFlag{
 			Name:   "http-mode, mode",
