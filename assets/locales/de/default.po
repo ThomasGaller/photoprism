@@ -1,9 +1,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"Report-Msgid-Bugs-To: ci@photoprism.app\n"
-"POT-Creation-Date: 2022-10-31 12:20+0000\n"
-"PO-Revision-Date: 2022-11-01 07:52+0000\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2023-03-09 13:14+0000\n"
+"PO-Revision-Date: 2023-03-29 12:10+0000\n"
 "Last-Translator: Admin <hello@photoprism.app>\n"
 "Language-Team: German <https://translate.photoprism.app/projects/photoprism/"
 "backend/de/>\n"
@@ -12,16 +12,16 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 4.14.1\n"
+"X-Generator: Weblate 4.16.2\n"
 "X-Poedit-Basepath: .\n"
 
 #: messages.go:94
-msgid "Unexpected error, please try again"
-msgstr "Unerwarteter Fehler, bitte erneut versuchen"
+msgid "Something went wrong, try again"
+msgstr "Etwas ist schief gelaufen, versuche es noch einmal"
 
 #: messages.go:95
-msgid "Invalid request"
-msgstr "Ungültige Anfrage"
+msgid "Unable to do that"
+msgstr "Dies ist nicht möglich"
 
 #: messages.go:96
 msgid "Changes could not be saved"
@@ -179,7 +179,7 @@ msgstr "Worker-Intervall ist %s, muss aber 1h oder weniger betragen"
 
 #: messages.go:134
 msgid "Your account could not be connected"
-msgstr "Ihr Konto konnte nicht verbunden werden"
+msgstr "Das Konto konnte nicht verbunden werden"
 
 #: messages.go:137
 msgid "Changes successfully saved"
@@ -237,15 +237,15 @@ msgstr "%d Einträge aus %s entfernt"
 
 #: messages.go:149
 msgid "Account created"
-msgstr "Server-Konfiguration angelegt"
+msgstr "Konto hinzugefügt"
 
 #: messages.go:150
 msgid "Account saved"
-msgstr "Server-Konfiguration gespeichert"
+msgstr "Konto gespeichert"
 
 #: messages.go:151
 msgid "Account deleted"
-msgstr "Server-Konfiguration gelöscht"
+msgstr "Konto gelöscht"
 
 #: messages.go:152
 msgid "Settings saved"
@@ -371,6 +371,12 @@ msgstr "Endgültig gelöscht"
 #, c-format
 msgid "%s has been restored"
 msgstr "%s wurde wiederhergestellt"
+
+#~ msgid "Invalid request"
+#~ msgstr "Ungültige Anfrage"
+
+#~ msgid "Unexpected error, please try again"
+#~ msgstr "Unerwarteter Fehler, bitte erneut versuchen"
 
 #~ msgid "Not found on server, deleted?"
 #~ msgstr "Nicht auf Server gefunden, gelöscht?"

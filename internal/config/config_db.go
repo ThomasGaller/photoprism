@@ -10,13 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/photoprism/photoprism/internal/migrate"
-
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 
 	"github.com/photoprism/photoprism/internal/entity"
+	"github.com/photoprism/photoprism/internal/migrate"
 	"github.com/photoprism/photoprism/internal/mutex"
 	"github.com/photoprism/photoprism/pkg/clean"
 	"github.com/photoprism/photoprism/pkg/txt"
@@ -97,6 +96,12 @@ func (c *Config) DatabaseDsn() string {
 	}
 
 	return c.options.DatabaseDsn
+}
+
+// DatabaseFile returns the filename part of a sqlite database DSN.
+func (c *Config) DatabaseFile() string {
+	fileName, _, _ := strings.Cut(c.DatabaseDsn(), "?")
+	return fileName
 }
 
 // ParseDatabaseDsn parses the database dsn and extracts user, password, database server, and name.
@@ -283,7 +288,13 @@ func (c *Config) InitDb() {
 // MigrateDb initializes the database and migrates the schema if needed.
 func (c *Config) MigrateDb(runFailed bool, ids []string) {
 	entity.Admin.UserName = c.AdminUser()
-	entity.InitDb(migrate.Opt(runFailed, ids))
+
+	// Only migrate once automatically per version.
+	version := migrate.FirstOrCreateVersion(c.Db(), migrate.NewVersion(c.Version(), c.Edition()))
+	entity.InitDb(migrate.Opt(version.NeedsMigration(), runFailed, ids))
+	if err := version.Migrated(c.Db()); err != nil {
+		log.Warnf("config: %s (migrate)", err)
+	}
 
 	// Init admin account?
 	if c.AdminPassword() == "" {
@@ -306,6 +317,28 @@ func (c *Config) InitTestDb() {
 	}
 
 	go entity.Error{}.LogEvents()
+}
+
+// connectDb checks the database server version.
+func (c *Config) checkDb(db *gorm.DB) error {
+	switch c.DatabaseDriver() {
+	case MySQL:
+		type Res struct {
+			Value string `gorm:"column:Value;"`
+		}
+		var res Res
+		if err := db.Raw("SHOW VARIABLES LIKE 'innodb_version'").Scan(&res).Error; err != nil {
+			return nil
+		} else if v := strings.Split(res.Value, "."); len(v) < 3 {
+			log.Warnf("config: unknown database server version")
+		} else if major := txt.UInt(v[0]); major < 10 {
+			return fmt.Errorf("config: MySQL %s is not supported, see https://docs.photoprism.app/getting-started/#databases", res.Value)
+		} else if sub := txt.UInt(v[1]); sub < 5 || sub == 5 && txt.UInt(v[2]) < 12 {
+			return fmt.Errorf("config: MariaDB %s is not supported, see https://docs.photoprism.app/getting-started/#databases", res.Value)
+		}
+	}
+
+	return nil
 }
 
 // connectDb establishes a database connection.
@@ -340,7 +373,7 @@ func (c *Config) connectDb() error {
 		}
 
 		if err != nil || db == nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 
@@ -354,28 +387,18 @@ func (c *Config) connectDb() error {
 	db.DB().SetConnMaxLifetime(time.Hour)
 
 	// Check database server version.
-	switch dbDriver {
-	case MySQL:
-		type Res struct {
-			Value string `gorm:"column:Value;"`
-		}
-		var res Res
-		if err = db.Raw("SHOW VARIABLES LIKE 'innodb_version'").Scan(&res).Error; err != nil {
-			return err
-		} else if v := strings.Split(res.Value, "."); len(v) < 3 {
-			log.Warnf("config: unknown database server version")
-		} else if major := txt.UInt(v[0]); major < 10 {
-			err = fmt.Errorf("config: MySQL %s is not supported, see https://docs.photoprism.app/getting-started/#databases", res.Value)
-			return err
-		} else if sub := txt.UInt(v[1]); sub < 5 || sub == 5 && txt.UInt(v[2]) < 12 {
-			err = fmt.Errorf("config: MariaDB %s is not supported, see https://docs.photoprism.app/getting-started/#databases", res.Value)
+	if err = c.checkDb(db); err != nil {
+		if c.Unsafe() {
+			log.Error(err)
+		} else {
 			return err
 		}
 	}
 
+	// Ok.
 	c.db = db
 
-	return err
+	return nil
 }
 
 // ImportSQL imports a file to the currently configured database.

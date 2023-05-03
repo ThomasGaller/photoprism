@@ -1,32 +1,27 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-10-31 12:20+0000\n"
-"PO-Revision-Date: 2022-11-01 13:34+0100\n"
-"Last-Translator: Michael Mayer <michael@photoprism.org>\n"
+"POT-Creation-Date: 2023-02-09 12:51+0000\n"
+"PO-Revision-Date: 2023-02-09 13:13+0000\n"
+"Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Russian <https://translate.photoprism.app/projects/photoprism/"
 "backend/ru/>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
-"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
-"X-Generator: Poedit 3.2\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"X-Generator: Weblate 4.15.2\n"
 
 #: messages.go:94
-msgid "Unexpected error, please try again"
-msgstr "Неожиданная ошибка попробуйте еще раз"
+msgid "Something went wrong, try again"
+msgstr "Что-то пошло не так, попробуйте еще раз"
 
 #: messages.go:95
-msgid "Invalid request"
-msgstr "Неправильный запрос"
+msgid "Unable to do that"
+msgstr "Невозможно сделать это"
 
 #: messages.go:96
 msgid "Changes could not be saved"
@@ -55,7 +50,7 @@ msgstr "Слишком большой файл"
 
 #: messages.go:102
 msgid "Unsupported format"
-msgstr "Не используемый формат"
+msgstr "Неподдерживаемый формат"
 
 #: messages.go:103
 msgid "Originals folder is empty"
@@ -103,7 +98,7 @@ msgstr "Не доступно в публичном режиме"
 
 #: messages.go:114
 msgid "Not available in read-only mode"
-msgstr "не доступно в режиме только для чтения"
+msgstr "Недоступно в режиме только для чтения"
 
 #: messages.go:115
 msgid "Please log in to your account"
@@ -127,11 +122,11 @@ msgstr "Нет выделенных элементов"
 
 #: messages.go:120
 msgid "Failed creating file, please check permissions"
-msgstr "Не удалось создать файл, пожалуйста проверьте права доступа"
+msgstr "Не удалось создать файл, проверьте права доступа"
 
 #: messages.go:121
 msgid "Failed creating folder, please check permissions"
-msgstr "Не удалось создать папку, пожалуйста проверьте права доступа"
+msgstr "Не удалось создать папку, проверьте права доступа"
 
 #: messages.go:122
 msgid "Could not connect, please try again"
@@ -159,7 +154,7 @@ msgstr "Нет файлов, доступных для скачивания"
 
 #: messages.go:128
 msgid "Failed to create zip file"
-msgstr "Не удалось создать zip файл"
+msgstr "Не удалось создать zip-файл"
 
 #: messages.go:129
 msgid "Invalid credentials"
@@ -180,7 +175,7 @@ msgstr "Занят, повторите попытку позже"
 #: messages.go:133
 #, c-format
 msgid "The wakeup interval is %s, but must be 1h or less"
-msgstr "Интервал пробуждения может быть %s, но должен быть 1ч или меньше"
+msgstr "Интервал пробуждения составляет %s, но должен быть 1 час или меньше"
 
 #: messages.go:134
 msgid "Your account could not be connected"
@@ -376,6 +371,12 @@ msgstr "Постоянно удаляется"
 #, c-format
 msgid "%s has been restored"
 msgstr "%s был восстановлен"
+
+#~ msgid "Invalid request"
+#~ msgstr "Неправильный запрос"
+
+#~ msgid "Unexpected error, please try again"
+#~ msgstr "Неожиданная ошибка попробуйте еще раз"
 
 #~ msgid "Not found on server, deleted?"
 #~ msgstr "Не найдено на сервере, удалено?"

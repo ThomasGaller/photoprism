@@ -2,7 +2,14 @@ import { timeZonesNames } from "@vvo/tzdb";
 import { $gettext } from "common/vm";
 import { Info } from "luxon";
 import { config } from "app/session";
-import { MediaAnimated, MediaImage, MediaLive, MediaRaw, MediaVideo } from "model/photo";
+import {
+  MediaImage,
+  MediaLive,
+  MediaVideo,
+  MediaAnimated,
+  MediaVector,
+  MediaRaw,
+} from "model/photo";
 
 export const TimeZones = () =>
   [
@@ -87,6 +94,10 @@ export const Languages = () => [
     value: "en",
   },
   {
+    text: "Afrikaans", // Afrikaans (South Africa)
+    value: "af",
+  },
+  {
     text: "Bahasa Indonesia", // Bahasa Indonesia
     value: "id",
   },
@@ -107,8 +118,16 @@ export const Languages = () => [
     value: "de",
   },
   {
+    text: "Eesti", // Estonian
+    value: "et",
+  },
+  {
     text: "Español", // Spanish
     value: "es",
+  },
+  {
+    text: "Euskara", // Basque
+    value: "eu",
   },
   {
     text: "Français", // French
@@ -198,7 +217,11 @@ export const Languages = () => [
     rtl: true,
   },
   {
-    text: "български", // Bulgarian
+    text: "Беларуская", // Belarusian
+    value: "be",
+  },
+  {
+    text: "Български", // Bulgarian
     value: "bg",
   },
   {
@@ -214,7 +237,7 @@ export const Languages = () => [
     value: "zh",
   },
   {
-    text: "繁体中文", // Chinese (Traditional)
+    text: "繁體中文", // Chinese (Traditional)
     value: "zh_TW",
   },
   {
@@ -265,7 +288,7 @@ export const MapsStyle = () => [
     value: "",
   },
   {
-    text: $gettext("Basic"),
+    text: $gettext("Low Resolution"),
     value: "offline",
   },
   {
@@ -296,12 +319,12 @@ export const PhotoTypes = () => [
     value: MediaImage,
   },
   {
-    text: $gettext("Animated"),
-    value: MediaAnimated,
-  },
-  {
     text: $gettext("Raw"),
     value: MediaRaw,
+  },
+  {
+    text: $gettext("Animated"),
+    value: MediaAnimated,
   },
   {
     text: $gettext("Live"),
@@ -310,6 +333,10 @@ export const PhotoTypes = () => [
   {
     text: $gettext("Video"),
     value: MediaVideo,
+  },
+  {
+    text: $gettext("Vector"),
+    value: MediaVector,
   },
 ];
 
@@ -419,4 +446,11 @@ export const Gender = () => [
   { value: "male", text: $gettext("Male") },
   { value: "female", text: $gettext("Female") },
   { value: "other", text: $gettext("Other") },
+];
+
+export const Orientations = () => [
+  { value: 1, text: "" },
+  { value: 6, text: "90°" },
+  { value: 3, text: "180°" },
+  { value: 8, text: "270°" },
 ];

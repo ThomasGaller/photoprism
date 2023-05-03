@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-# Installs GPU drivers on Linux
+# This installs GPU drivers on Linux.
 # bash <(curl -s https://raw.githubusercontent.com/photoprism/photoprism/develop/scripts/dist/install-gpu.sh)
 
 PATH="/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin:/scripts:$PATH"
 
-# abort if not executed as root
+# Abort if not executed as root.
 if [[ $(id -u) != "0" ]]; then
   echo "Error: Run ${0##*/} as root" 1>&2
   exit 1
@@ -47,9 +47,9 @@ esac
 # shellcheck disable=SC2068
 for t in ${GPU_DETECTED[@]}; do
   case $t in
-    i915)
+    i915 | i965 | intel | opencl | icd)
       echo "Installing Intel Drivers..."
-      apt-get -qq install intel-opencl-icd intel-media-va-driver-non-free i965-va-driver-shaders mesa-va-drivers libmfx1 libva2 vainfo libva-wayland2
+      apt-get -qq install intel-opencl-icd intel-media-va-driver-non-free i965-va-driver-shaders mesa-va-drivers libmfx-gen-dev va-driver-all vainfo libva-dev
       ;;
 
     nvidia)
