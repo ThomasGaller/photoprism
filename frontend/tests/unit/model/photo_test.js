@@ -72,7 +72,7 @@ describe("model/photo", () => {
     };
     const photo3 = new Photo(values3);
     const result3 = photo3.thumbnailUrl("tile500");
-    assert.equal(result3, "/api/v1/svg/photo");
+    assert.equal(result3, "/static/img/404.jpg");
   });
 
   it("should get classes", () => {
@@ -637,8 +637,8 @@ describe("model/photo", () => {
     };
     const photo3 = new Photo(values3);
     const result = photo3.videoParams();
-    assert.equal(result.height, "463");
-    assert.equal(result.width, "695");
+    assert.equal(result.height, 457);
+    assert.equal(result.width, 685);
     assert.equal(result.loop, false);
     assert.equal(result.uri, "/api/v1/videos/1xxbgdt55/public/avc");
     const values = {
@@ -669,8 +669,8 @@ describe("model/photo", () => {
     };
     const photo = new Photo(values);
     const result2 = photo.videoParams();
-    assert.equal(result2.height, "440");
-    assert.equal(result2.width, "440");
+    assert.equal(result2.height, 500);
+    assert.equal(result2.width, 500);
     assert.equal(result2.loop, false);
     assert.equal(result2.uri, "/api/v1/videos/1xxbgdt55/public/avc");
   });
@@ -1073,7 +1073,7 @@ describe("model/photo", () => {
       ],
     };
     const photo3 = new Photo(values3);
-    assert.equal(photo3.getVideoInfo(), "6µs, AVC1, 500 × 600, 0.2 MB");
+    assert.equal(photo3.getVideoInfo(), "6µs, AVC, 500 × 600, 0.2 MB");
     const values4 = {
       ID: 10,
       UID: "ABC127",
@@ -1100,7 +1100,7 @@ describe("model/photo", () => {
       ],
     };
     const photo4 = new Photo(values4);
-    assert.equal(photo4.getVideoInfo(), "6µs, AVC1, 300 × 500, 10.0 KB");
+    assert.equal(photo4.getVideoInfo(), "6µs, AVC, 300 × 500, 10.0 KB");
   });
 
   it("should return photo info", () => {
@@ -1150,7 +1150,7 @@ describe("model/photo", () => {
       ],
     };
     const photo3 = new Photo(values3);
-    assert.equal(photo3.getPhotoInfo(), "Canon abcde, AVC1, 500 × 600");
+    assert.equal(photo3.getPhotoInfo(), "Canon abcde, AVC, 500 × 600");
     const values4 = {
       ID: 10,
       UID: "ABC127",
@@ -1182,7 +1182,7 @@ describe("model/photo", () => {
       ],
     };
     const photo4 = new Photo(values4);
-    assert.equal(photo3.getPhotoInfo(), "Canon abcde, AVC1, 500 × 600");
+    assert.equal(photo3.getPhotoInfo(), "Canon abcde, AVC, 500 × 600");
   });
 
   it("should archive photo", () => {
