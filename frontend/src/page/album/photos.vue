@@ -196,9 +196,9 @@ export default {
       }
 
       if (this.canAccessLibrary && photo.CellID && photo.CellID !== "zz") {
-        this.$router.push({name: "places_query", params: {q: photo.CellID}});
+        this.$router.push({name: "places", query: {q: photo.CellID}});
       } else if (this.uid) {
-        this.$router.push({name: "places_scope", params: {s: this.uid, q: photo.CellID}});
+        this.$router.push({name: "places_view", params: {s: this.uid}, query: {q: photo.CellID}});
       }
     },
     editPhoto(index) {
@@ -444,8 +444,7 @@ export default {
             this.$notify.info(this.$gettextInterpolate(this.$gettext("%{n} pictures found"), {n: this.results.length}));
           }
         } else {
-          this.$notify.info(this.$gettextInterpolate(this.$gettext("More than %{n} pictures found"), {n: 100}));
-
+          // this.$notify.info(this.$gettextInterpolate(this.$gettext("More than %{n} pictures found"), {n: 100}));
           this.$nextTick(() => {
             if (this.$root.$el.clientHeight <= window.document.documentElement.clientHeight + 300) {
               this.$emit("scrollRefresh");
