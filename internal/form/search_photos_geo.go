@@ -29,6 +29,7 @@ type SearchPhotosGeo struct {
 	Raw       bool      `form:"raw"`
 	Live      bool      `form:"live"`
 	Scan      string    `form:"scan" example:"scan:true scan:false" notes:"Finds scanned photos and documents"`
+	Mp        string    `form:"mp" example:"mp:3-6" notes:"Resolution in Megapixels (MP)"`
 	Panorama  bool      `form:"panorama"`
 	Portrait  bool      `form:"portrait"`
 	Landscape bool      `form:"landscape"`
@@ -46,13 +47,20 @@ type SearchPhotosGeo struct {
 	Olc       string    `form:"olc" example:"olc:8FWCHX7W+" notes:"OLC Position (Open Location Code)"`
 	Lat       float64   `form:"lat" example:"lat:41.894043" notes:"GPS Position (Latitude)"`
 	Lng       float64   `form:"lng" example:"lng:-87.62448" notes:"GPS Position (Longitude)"`
+	Alt       string    `form:"alt" example:"alt:300-500" notes:"GPS Altitude (m)"`
 	Dist      float64   `form:"dist" example:"dist:50" notes:"Distance to Position (km)"`
 	Latlng    string    `form:"latlng" notes:"GPS Bounding Box (Lat N, Lng E, Lat S, Lng W)"`
+	Camera    int       `form:"camera"`
+	Lens      int       `form:"lens"`
+	Iso       string    `form:"iso" example:"iso:200-400" notes:"ISO Number (light sensitivity)"`
+	Mm        string    `form:"mm" example:"mm:28-35" notes:"Focal Length (35mm equivalent)"`
+	F         string    `form:"f" example:"f:2.8-4.5" notes:"Aperture (f-number)"`
+	Color     string    `form:"color"`
+	Chroma    int16     `form:"chroma" example:"chroma:70" notes:"Chroma (0-100)"`
+	Mono      bool      `form:"mono" notes:"Finds pictures with few or no colors"`
 	Person    string    `form:"person"`   // Alias for Subject
 	Subjects  string    `form:"subjects"` // Text
 	People    string    `form:"people"`   // Alias for Subjects
-	Chroma    int16     `form:"chroma" example:"chroma:70" notes:"Chroma (0-100)"`
-	Mono      bool      `form:"mono" notes:"Finds pictures with few or no colors"`
 	Keywords  string    `form:"keywords" example:"keywords:\"sand&water\"" notes:"Keywords (combinable with & and |)"`
 	Label     string    `form:"label" example:"label:cat|dog" notes:"Label Names (separate with |)"`
 	Category  string    `form:"category" example:"category:airport" notes:"Location Category"`
@@ -64,9 +72,6 @@ type SearchPhotosGeo struct {
 	Year      string    `form:"year"`  // Moments
 	Month     string    `form:"month"` // Moments
 	Day       string    `form:"day"`   // Moments
-	Color     string    `form:"color"`
-	Camera    int       `form:"camera"`
-	Lens      int       `form:"lens"`
 	Count     int       `form:"count" serialize:"-"`
 	Offset    int       `form:"offset" serialize:"-"`
 }

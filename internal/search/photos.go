@@ -16,6 +16,7 @@ import (
 	"github.com/photoprism/photoprism/pkg/clean"
 	"github.com/photoprism/photoprism/pkg/fs"
 	"github.com/photoprism/photoprism/pkg/geo"
+	"github.com/photoprism/photoprism/pkg/media"
 	"github.com/photoprism/photoprism/pkg/pluscode"
 	"github.com/photoprism/photoprism/pkg/rnd"
 	"github.com/photoprism/photoprism/pkg/s2"
@@ -28,9 +29,6 @@ var PhotosColsAll = SelectString(Photo{}, []string{"*"})
 
 // PhotosColsView contains the result column names necessary for the photo viewer.
 var PhotosColsView = SelectString(Photo{}, SelectCols(GeoResult{}, []string{"*"}))
-
-// FileTypes contains a list of browser-compatible file formats returned by search queries.
-var FileTypes = []string{fs.ImageJPEG.String(), fs.ImagePNG.String(), fs.ImageGIF.String(), fs.ImageHEIC.String(), fs.ImageAVIF.String(), fs.ImageAVIFS.String(), fs.ImageWebP.String(), fs.VectorSVG.String()}
 
 // Photos finds PhotoResults based on the search form without checking rights or permissions.
 func Photos(f form.SearchPhotos) (results PhotoResults, count int, err error) {
@@ -148,7 +146,7 @@ func searchPhotos(f form.SearchPhotos, sess *entity.Session, resultCols string) 
 		}
 
 		// Visitors and other restricted users can only access shared content.
-		if f.Scope != "" && !sess.HasShare(f.Scope) && (sess.IsVisitor() || sess.NotRegistered()) ||
+		if f.Scope != "" && !sess.HasShare(f.Scope) && (sess.User().HasSharedAccessOnly(acl.ResourcePhotos) || sess.NotRegistered()) ||
 			f.Scope == "" && acl.Resources.Deny(acl.ResourcePhotos, aclRole, acl.ActionSearch) {
 			event.AuditErr([]string{sess.IP(), "session %s", "%s %s as %s", "denied"}, sess.RefID, acl.ActionSearch.String(), string(acl.ResourcePhotos), aclRole)
 			return PhotoResults{}, 0, ErrForbidden
@@ -200,10 +198,8 @@ func searchPhotos(f form.SearchPhotos, sess *entity.Session, resultCols string) 
 		return PhotoResults{}, 0, ErrBadSortOrder
 	}
 
-	// Limit the result file types if hidden images/videos should not be found.
+	// Exclude files with errors by default.
 	if !f.Hidden {
-		s = s.Where("files.file_type IN (?) OR files.media_type IN ('vector','video')", FileTypes)
-
 		if f.Error {
 			s = s.Where("files.file_error <> ''")
 		} else {
@@ -211,9 +207,16 @@ func searchPhotos(f form.SearchPhotos, sess *entity.Session, resultCols string) 
 		}
 	}
 
-	// Primary files only.
+	// Find primary files only?
 	if f.Primary {
 		s = s.Where("files.file_primary = 1")
+	} else if f.Order == sortby.Similar {
+		s = s.Where("files.file_primary = 1 OR files.media_type = ?", media.Video)
+	} else if f.Order == sortby.Random {
+		s = s.Where("files.file_primary = 1 AND photos.photo_type NOT IN ('live','video') OR photos.photo_type IN ('live','video') AND files.media_type IN ('live','video')")
+	} else {
+		// Otherwise, find all matching media except sidecar files.
+		s = s.Where("files.file_sidecar = 0")
 	}
 
 	// Find specific UIDs only.
@@ -491,6 +494,21 @@ func searchPhotos(f form.SearchPhotos, sess *entity.Session, resultCols string) 
 		s = s.Where("lenses.lens_name LIKE ? OR lenses.lens_model LIKE ? OR lenses.lens_slug LIKE ?", v, v, v)
 	}
 
+	// Filter by ISO Number (light sensitivity) range.
+	if rangeStart, rangeEnd, rangeErr := txt.IntRange(f.Iso, 0, 10000000); rangeErr == nil {
+		s = s.Where("photos.photo_iso >= ? AND photos.photo_iso <= ?", rangeStart, rangeEnd)
+	}
+
+	// Filter by Focal Length (35mm equivalent) range.
+	if rangeStart, rangeEnd, rangeErr := txt.IntRange(f.Mm, 0, 10000000); rangeErr == nil {
+		s = s.Where("photos.photo_focal_length >= ? AND photos.photo_focal_length <= ?", rangeStart, rangeEnd)
+	}
+
+	// Filter by Aperture (f-number) range.
+	if rangeStart, rangeEnd, rangeErr := txt.FloatRange(f.F, 0, 10000000); rangeErr == nil {
+		s = s.Where("photos.photo_f_number >= ? AND photos.photo_f_number <= ?", rangeStart-0.01, rangeEnd+0.01)
+	}
+
 	// Filter by year.
 	if f.Year != "" {
 		s = s.Where(AnyInt("photos.photo_year", f.Year, txt.Or, entity.UnknownYear, txt.YearMax))
@@ -506,9 +524,41 @@ func searchPhotos(f form.SearchPhotos, sess *entity.Session, resultCols string) 
 		s = s.Where(AnyInt("photos.photo_day", f.Day, txt.Or, entity.UnknownDay, txt.DayMax))
 	}
 
+	// Filter by Resolution in Megapixels (MP).
+	if rangeStart, rangeEnd, rangeErr := txt.IntRange(f.Mp, 0, 32000); rangeErr == nil {
+		s = s.Where("photos.photo_resolution >= ? AND photos.photo_resolution <= ?", rangeStart, rangeEnd)
+	}
+
+	// Find panoramic pictures only.
+	if f.Panorama {
+		s = s.Where("photos.photo_panorama = 1")
+	}
+
+	// Find portrait/landscape/square pictures only.
+	if f.Portrait {
+		s = s.Where("files.file_portrait = 1")
+	} else if f.Landscape {
+		s = s.Where("files.file_aspect_ratio > 1.25")
+	} else if f.Square {
+		s = s.Where("files.file_aspect_ratio = 1")
+	}
+
 	// Filter by main color.
 	if f.Color != "" {
 		s = s.Where("files.file_main_color IN (?)", SplitOr(strings.ToLower(f.Color)))
+	}
+
+	// Filter by chroma.
+	if f.Mono {
+		s = s.Where("files.file_chroma = 0")
+	} else if f.Chroma > 9 {
+		s = s.Where("files.file_chroma > ?", f.Chroma)
+	} else if f.Chroma > 0 {
+		s = s.Where("files.file_chroma > 0 AND files.file_chroma <= ?", f.Chroma)
+	}
+
+	if f.Diff != 0 {
+		s = s.Where("files.file_diff = ?", f.Diff)
 	}
 
 	// Filter by favorite flag.
@@ -525,20 +575,7 @@ func searchPhotos(f form.SearchPhotos, sess *entity.Session, resultCols string) 
 		s = s.Where("photos.photo_scan = 1")
 	}
 
-	// Find panoramas only.
-	if f.Panorama {
-		s = s.Where("photos.photo_panorama = 1")
-	}
-
-	// Find portrait/landscape/square pictures only.
-	if f.Portrait {
-		s = s.Where("files.file_portrait = 1")
-	} else if f.Landscape {
-		s = s.Where("files.file_aspect_ratio > 1.25")
-	} else if f.Square {
-		s = s.Where("files.file_aspect_ratio = 1")
-	}
-
+	// Filter by stack flag.
 	if f.Stackable {
 		s = s.Where("photos.photo_stack > -1")
 	} else if f.Unstacked {
@@ -634,27 +671,6 @@ func searchPhotos(f form.SearchPhotos, sess *entity.Session, resultCols string) 
 		s = s.Where("files.file_hash IN (?)", SplitOr(strings.ToLower(f.Hash)))
 	}
 
-	// Filter by chroma.
-	if f.Mono {
-		s = s.Where("files.file_chroma = 0")
-	} else if f.Chroma > 9 {
-		s = s.Where("files.file_chroma > ?", f.Chroma)
-	} else if f.Chroma > 0 {
-		s = s.Where("files.file_chroma > 0 AND files.file_chroma <= ?", f.Chroma)
-	}
-
-	if f.Diff != 0 {
-		s = s.Where("files.file_diff = ?", f.Diff)
-	}
-
-	if f.Fmin > 0 {
-		s = s.Where("photos.photo_f_number >= ?", f.Fmin)
-	}
-
-	if f.Fmax > 0 {
-		s = s.Where("photos.photo_f_number <= ?", f.Fmax)
-	}
-
 	// Filter by location code.
 	if txt.NotEmpty(f.S2) {
 		// S2 Cell ID.
@@ -672,14 +688,19 @@ func searchPhotos(f form.SearchPhotos, sess *entity.Session, resultCols string) 
 		s = s.Where("photos.photo_lng BETWEEN ? AND ?", lngW, lngE)
 	}
 
-	// Filter by GPS Latitude (from +90 to -90 degrees).
+	// Filter by GPS Latitude range (from +90 to -90 degrees).
 	if latN, latS, latErr := clean.GPSLatRange(f.Lat, f.Dist); latErr == nil {
 		s = s.Where("photos.photo_lat BETWEEN ? AND ?", latS, latN)
 	}
 
-	// Filter by GPS Longitude (from -180 to +180 degrees).
+	// Filter by GPS Longitude range (from -180 to +180 degrees)
 	if lngE, lngW, lngErr := clean.GPSLngRange(f.Lng, f.Dist); lngErr == nil {
 		s = s.Where("photos.photo_lng BETWEEN ? AND ?", lngW, lngE)
+	}
+
+	// Filter by GPS Altitude (m) range.
+	if rangeStart, rangeEnd, rangeErr := txt.IntRange(f.Alt, -6378000, 1000000000); rangeErr == nil {
+		s = s.Where("photos.photo_altitude BETWEEN ? AND ?", rangeStart, rangeEnd)
 	}
 
 	// Find photos taken before date.

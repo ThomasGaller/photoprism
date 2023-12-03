@@ -1,6 +1,7 @@
 package query
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/dustin/go-humanize/english"
@@ -77,7 +78,6 @@ func MissingPhotos(limit int, offset int) (entities entity.Photos, err error) {
 	err = Db().
 		Select("photos.*").
 		Where("id NOT IN (SELECT photo_id FROM files WHERE file_missing = 0 AND file_root = '/' AND deleted_at IS NULL)").
-		Where("photos.photo_type <> ?", entity.MediaText).
 		Order("photos.id").
 		Limit(limit).Offset(offset).Find(&entities).Error
 
@@ -90,7 +90,6 @@ func ArchivedPhotos(limit int, offset int) (entities entity.Photos, err error) {
 		Select("photos.*").
 		Where("photos.photo_quality > -1").
 		Where("photos.deleted_at IS NOT NULL").
-		Where("photos.photo_type <> ?", entity.MediaText).
 		Order("photos.id").
 		Limit(limit).Offset(offset).Find(&entities).Error
 
@@ -184,8 +183,8 @@ func FlagHiddenPhotos() (err error) {
 	// IDs of hidden photos.
 	var hidden []uint
 
-	// Number of updated photos.
-	n := 0
+	// Number of updated records.
+	affected := 0
 
 	// Find and flag hidden photos.
 	if err = Db().Table(entity.Photo{}.TableName()).
@@ -198,10 +197,10 @@ func FlagHiddenPhotos() (err error) {
 		return nil
 	} else {
 		// Update photos in batches to be compatible with SQLite.
-		batch := 500
+		batchSize := BatchSize()
 
-		for i := 0; i < len(hidden); i += batch {
-			j := i + batch
+		for i := 0; i < len(hidden); i += batchSize {
+			j := i + batchSize
 
 			if j > len(hidden) {
 				j = len(hidden)
@@ -211,20 +210,23 @@ func FlagHiddenPhotos() (err error) {
 			ids := hidden[i:j]
 
 			// Set photos.photo_quality = -1.
-			if err = Db().Table(entity.Photo{}.TableName()).Where("id IN (?)", ids).UpdateColumn("photo_quality", -1).Error; err != nil {
-				// Failed.
-				log.Warnf("index: failed to flag %d pictures as hidden", len(ids))
-				return err
+			if result := UnscopedDb().Table(entity.Photo{}.TableName()).
+				Where("id IN (?) AND photo_quality > -1", ids).
+				UpdateColumn("photo_quality", -1); result.Error != nil {
+				// Failed to flag all hidden photos.
+				log.Warnf("index: failed to flag %d photos as hidden", len(hidden)-affected)
+				return fmt.Errorf("%s while flagging hidden photos", result.Error)
+			} else if result.RowsAffected > 0 {
+				affected += int(result.RowsAffected)
 			} else {
-				// Success.
-				n += len(ids)
+				affected += len(ids)
 			}
 		}
 	}
 
-	// Log number of updated photos, if any.
-	if n > 0 {
-		log.Infof("index: flagged %s as hidden [%s]", english.Plural(int(n), "photo", "photos"), time.Since(start))
+	// Log number of affected rows, if any.
+	if affected > 0 {
+		log.Infof("index: flagged %s as hidden [%s]", english.Plural(affected, "photo", "photos"), time.Since(start))
 	}
 
 	return nil

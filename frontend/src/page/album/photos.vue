@@ -64,7 +64,7 @@ export default {
     },
   },
   data() {
-    const uid = this.$route.params.uid;
+    const uid = this.$route.params.album;
     const query = this.$route.query;
     const routeName = this.$route.name;
     const order = query['order'] ? query['order'] : 'oldest';
@@ -99,6 +99,7 @@ export default {
       filter: filter,
       lastFilter: {},
       routeName: routeName,
+      collectionRoute: this.$route.meta?.collectionRoute ? this.$route.meta.collectionRoute : "albums",
       loading: true,
       viewer: {
         results: [],
@@ -143,8 +144,8 @@ export default {
 
       this.routeName = this.$route.name;
 
-      if (this.uid !== this.$route.params.uid) {
-        this.uid = this.$route.params.uid;
+      if (this.uid !== this.$route.params.album) {
+        this.uid = this.$route.params.album;
         this.findAlbum().then(() => this.search());
       } else {
         this.search();
@@ -465,6 +466,9 @@ export default {
         window.document.title = `${this.$config.get("siteTitle")}: ${this.model.Title}`;
 
         return Promise.resolve(this.model);
+      }).catch((e) => {
+        this.$router.push({ name: this.collectionRoute });
+        return Promise.reject(e);
       });
     },
     onAlbumsUpdated(ev, data) {

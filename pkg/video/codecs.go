@@ -2,6 +2,11 @@ package video
 
 type Codec string
 
+// String returns the codec name as string.
+func (c Codec) String() string {
+	return string(c)
+}
+
 // Check browser support: https://cconcolato.github.io/media-mime-support/
 
 const (
@@ -40,6 +45,7 @@ var Codecs = StandardCodecs{
 	"vp80":     CodecVP8,
 	"v_vp8":    CodecVP8,
 	"vp9":      CodecVP9,
+	"vp09":     CodecVP9,
 	"vp90":     CodecVP9,
 	"v_vp9":    CodecVP9,
 	"ogv":      CodecOGV,

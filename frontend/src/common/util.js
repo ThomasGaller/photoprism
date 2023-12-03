@@ -153,6 +153,14 @@ export default class Util {
     return s.replace(/\w\S*/g, (w) => w.replace(/^\w/, (c) => c.toUpperCase()));
   }
 
+  static ucFirst(s) {
+    if (!s || s === "") {
+      return "";
+    }
+
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
   static generateToken() {
     return (Math.random() + 1).toString(36).substring(6);
   }
@@ -243,6 +251,11 @@ export default class Util {
     }
 
     switch (codec) {
+      case "webp":
+      case "extended webp":
+        return "WebP";
+      case "webm":
+        return "WebM";
       case "av1c":
       case "av01":
         return "AV1";
@@ -288,6 +301,8 @@ export default class Util {
         return "Matroska Multimedia Container (MKV)";
       case "webp":
         return "Google WebP";
+      case "extended webp":
+        return "Extended WebP";
       case "webm":
         return "Google WebM";
       case "mpeg":
