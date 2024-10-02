@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/photoprism/photoprism/internal/event"
-	"github.com/photoprism/photoprism/internal/maps"
-	"github.com/photoprism/photoprism/pkg/s2"
+	"github.com/photoprism/photoprism/internal/service/maps"
+	"github.com/photoprism/photoprism/pkg/geo/s2"
 	"github.com/photoprism/photoprism/pkg/txt"
 )
 
@@ -48,15 +48,15 @@ func CreateUnknownLocation() {
 }
 
 // NewCell creates a location using a token extracted from coordinate
-func NewCell(lat, lng float32) *Cell {
+func NewCell(lat, lng float64) *Cell {
 	result := &Cell{}
 
-	result.ID = s2.PrefixedToken(float64(lat), float64(lng))
+	result.ID = s2.PrefixedToken(lat, lng)
 
 	return result
 }
 
-// Refresh updates the index by retrieving the latest data from an external API.
+// Refresh updates the cell details by fetching the latest data.
 func (m *Cell) Refresh(api string) (err error) {
 	// Unknown?
 	if m.Unknown() {

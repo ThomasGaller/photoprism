@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
-# This builds heif-convert, heif-enc, heif-info, and heif-thumbnailer binaries from source.
+# This builds the heif-convert, heif-enc, heif-info and heif-thumbnailer binaries from source.
+#
+# To create ARMv7 binaries with Docker on Ubuntu 22.04 LTS, you can e.g. run the following:
+#
+#   docker run --rm --platform=arm --pull=always -v ".:/go/src/github.com/photoprism/photoprism" \
+#   -e BUILD_ARCH=arm -e SYSTEM_ARCH=arm --entrypoint "" photoprism/develop:jammy ./scripts/dist/build-libheif.sh
 
 # Show usage information if first argument is --help.
 if [[ ${1} == "--help" ]]; then
@@ -57,10 +62,14 @@ echo "LATEST : $LATEST"
 echo "ARCHIVE: $ARCHIVE"
 echo "------------------------------------------------"
 
-echo "Installing build deps..."
+echo "Installing build dependencies..."
 
 sudo apt-get -qq update
-sudo apt-get -qq install build-essential gcc g++ gettext git autoconf automake cmake libtool libjpeg-dev libpng-dev libwebp-dev libde265-dev libaom-dev
+sudo apt-get -qq install build-essential gcc g++ gettext git autoconf automake cmake libtool libjpeg-dev libpng-dev libwebp-dev libde265-dev libaom-dev libavcodec-dev
+
+if [[ $VERSION_CODENAME == "noble" ]]; then
+  sudo apt-get -qq install libsharpyuv-dev librav1e-dev
+fi
 
 cd "/tmp" || exit
 rm -rf "/tmp/libheif"

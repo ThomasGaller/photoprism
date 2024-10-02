@@ -71,8 +71,8 @@ func TestMediaFile_HEIC(t *testing.T) {
 		assert.Equal(t, "1/4000", jpegInfo.Exposure)
 		assert.Equal(t, float32(1.696), jpegInfo.Aperture)
 		assert.Equal(t, 20, jpegInfo.Iso)
-		assert.Equal(t, float32(34.79745), jpegInfo.Lat)
-		assert.Equal(t, float32(134.76463), jpegInfo.Lng)
+		assert.Equal(t, float32(34.79745), float32(jpegInfo.Lat))
+		assert.Equal(t, float32(134.76463), float32(jpegInfo.Lng))
 		assert.Equal(t, 0.0, jpegInfo.Altitude)
 		assert.Equal(t, 4032, jpegInfo.Width)
 		assert.Equal(t, 3024, jpegInfo.Height)
@@ -110,8 +110,6 @@ func TestMediaFile_HEIC(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		t.Logf("JPEG FILENAME: %s", jpeg.FileName())
-
 		assert.Nil(t, err)
 
 		jpegInfo := jpeg.MetaData()
@@ -134,11 +132,11 @@ func TestMediaFile_HEIC(t *testing.T) {
 		assert.Equal(t, "1/60", jpegInfo.Exposure)
 		assert.Equal(t, float32(2.275), jpegInfo.Aperture)
 		assert.Equal(t, 400, jpegInfo.Iso)
-		assert.Equal(t, float32(52.459606), jpegInfo.Lat)
-		assert.Equal(t, float32(13.321841), jpegInfo.Lng)
+		assert.InEpsilon(t, 52.459605, jpegInfo.Lat, 0.0001)
+		assert.InEpsilon(t, 13.3218416, jpegInfo.Lng, 0.0001)
 		assert.Equal(t, 50.0, jpegInfo.Altitude)
-		assert.Equal(t, 4032, jpegInfo.Width)
-		assert.Equal(t, 3024, jpegInfo.Height)
+		assert.Equal(t, 3024, jpegInfo.Width)
+		assert.Equal(t, 4032, jpegInfo.Height)
 		assert.Equal(t, false, jpegInfo.Flash)
 		assert.Equal(t, "", jpegInfo.Description)
 

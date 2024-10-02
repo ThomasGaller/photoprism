@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -152,7 +153,7 @@ func TestSubject_Delete(t *testing.T) {
 		}
 		assert.False(t, m.Deleted())
 
-		time := TimeStamp()
+		time := Now()
 		m.DeletedAt = &time
 
 		assert.True(t, m.Deleted())
@@ -227,7 +228,7 @@ func TestFindSubjectByName(t *testing.T) {
 	t.Run("RestoreDeleted", func(t *testing.T) {
 		m := NewSubject("Jim Doe", SubjPerson, SrcAuto)
 
-		time := TimeStamp()
+		time := Now()
 		m.DeletedAt = &time
 
 		err := m.Save()
@@ -252,6 +253,23 @@ func TestSubject_Links(t *testing.T) {
 		m := SubjectFixtures.Pointer("john-doe")
 		links := m.Links()
 		assert.Empty(t, links)
+	})
+}
+
+func TestSubject_String(t *testing.T) {
+	t.Run("Nil", func(t *testing.T) {
+		var m *Subject
+		assert.Equal(t, "Subject<nil>", m.String())
+		assert.Equal(t, "Subject<nil>", fmt.Sprintf("%s", m))
+	})
+	t.Run("New", func(t *testing.T) {
+		m := &Subject{}
+		assert.Equal(t, "*Subject", m.String())
+		assert.Equal(t, "*Subject", fmt.Sprintf("%s", m))
+	})
+	t.Run("JohnDoe", func(t *testing.T) {
+		m := SubjectFixtures.Pointer("john-doe")
+		assert.Equal(t, "John Doe", m.String())
 	})
 }
 
@@ -473,7 +491,7 @@ func TestSubject_DeletePermanently(t *testing.T) {
 
 	assert.Nil(t, m.DeletePermanently())
 
-	time := TimeStamp()
+	time := Now()
 	m.DeletedAt = &time
 
 	if err := m.Save(); err != nil {

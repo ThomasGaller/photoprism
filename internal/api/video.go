@@ -9,22 +9,27 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/photoprism/photoprism/internal/entity"
-	"github.com/photoprism/photoprism/internal/get"
+	"github.com/photoprism/photoprism/internal/entity/query"
 	"github.com/photoprism/photoprism/internal/photoprism"
-	"github.com/photoprism/photoprism/internal/query"
+	"github.com/photoprism/photoprism/internal/photoprism/get"
 	"github.com/photoprism/photoprism/pkg/clean"
 	"github.com/photoprism/photoprism/pkg/fs"
-	"github.com/photoprism/photoprism/pkg/video"
+	"github.com/photoprism/photoprism/pkg/media/video"
 )
 
-// GetVideo streams video content.
+// GetVideo returns a video, optionally limited to a byte range for streaming.
 //
-// GET /api/v1/videos/:hash/:token/:type
-//
-// Parameters:
-//
-//	hash: string The photo or video file hash as returned by the search API
-//	type: string Video format
+//	@Summary		returns a video, optionally limited to a byte range for streaming
+//	@Description	Fore more information see:
+//	@Description	- https://docs.photoprism.app/developer-guide/api/thumbnails/#video-endpoint-uri
+//	@Id				GetVideo
+//	@Produce		video/mp4
+//	@Tags			Files, Videos
+//	@Failure		403		{object}	i18n.Response
+//	@Param			thumb	path		string	true	"SHA1 video file hash"
+//	@Param			token	path		string	true	"user-specific security token provided with session"
+//	@Param			format	path		string	true	"video format, e.g. mp4"
+//	@Router			/api/v1/videos/{hash}/{token}/{format} [get]
 func GetVideo(router *gin.RouterGroup) {
 	router.GET("/videos/:hash/:token/:format", func(c *gin.Context) {
 		if InvalidPreviewToken(c) {
@@ -83,7 +88,7 @@ func GetVideo(router *gin.RouterGroup) {
 		// If the file has a hybrid photo/video format, try to find and send the embedded video data.
 		if f.MediaType == entity.MediaLive {
 			if info, videoErr := video.ProbeFile(videoFileName); info.VideoOffset < 0 || !info.Compatible || videoErr != nil {
-				logError("video", videoErr)
+				logErr("video", videoErr)
 				log.Warnf("video: no embedded media found in %s", clean.Log(f.FileName))
 				AddContentTypeHeader(c, video.ContentTypeAVC)
 				c.File(get.Config().StaticFile("video/404.mp4"))
@@ -98,7 +103,7 @@ func GetVideo(router *gin.RouterGroup) {
 				AddVideoCacheHeader(c, conf.CdnVideo())
 				c.DataFromReader(http.StatusOK, info.VideoSize(), info.VideoContentType(), reader, nil)
 				return
-			} else if cacheName, cacheErr := fs.CacheFile(filepath.Join(conf.MediaFileCachePath(f.FileHash), f.FileHash+info.VideoFileExt()), reader); cacheErr != nil {
+			} else if cacheName, cacheErr := fs.CacheFileFromReader(filepath.Join(conf.MediaFileCachePath(f.FileHash), f.FileHash+info.VideoFileExt()), reader); cacheErr != nil {
 				log.Errorf("video: failed to cache %s embedded in %s (%s)", strings.ToUpper(videoFileType), clean.Log(f.FileName), cacheErr)
 				AddContentTypeHeader(c, video.ContentTypeAVC)
 				c.File(get.Config().StaticFile("video/404.mp4"))
@@ -121,7 +126,7 @@ func GetVideo(router *gin.RouterGroup) {
 
 		if mediaFile, mediaErr := photoprism.NewMediaFile(videoFileName); mediaErr != nil {
 			// Set missing flag so that the file doesn't show up in search results anymore.
-			logError("video", f.Update("FileMissing", true))
+			logErr("video", f.Update("FileMissing", true))
 
 			// Log error and default to 404.mp4
 			log.Errorf("video: file %s is missing", clean.Log(f.FileName))

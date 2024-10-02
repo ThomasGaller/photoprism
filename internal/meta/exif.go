@@ -17,7 +17,7 @@ import (
 
 	"github.com/photoprism/photoprism/pkg/clean"
 	"github.com/photoprism/photoprism/pkg/fs"
-	"github.com/photoprism/photoprism/pkg/projection"
+	"github.com/photoprism/photoprism/pkg/media/projection"
 	"github.com/photoprism/photoprism/pkg/rnd"
 	"github.com/photoprism/photoprism/pkg/txt"
 )
@@ -261,8 +261,8 @@ func (data *Data) Exif(fileName string, fileFormat fs.Type, bruteForce bool) (er
 
 	if data.Lat != 0 && data.Lng != 0 {
 		zones, err := tz.GetZone(tz.Point{
-			Lat: float64(data.Lat),
-			Lon: float64(data.Lng),
+			Lat: data.Lat,
+			Lon: data.Lng,
 		})
 
 		if err == nil && len(zones) > 0 {
@@ -273,7 +273,7 @@ func (data *Data) Exif(fileName string, fileFormat fs.Type, bruteForce bool) (er
 	takenAt := time.Time{}
 
 	for _, name := range exifDateTimeTags {
-		if dateTime := txt.DateTime(data.exif[name], data.TimeZone); !dateTime.IsZero() {
+		if dateTime := txt.ParseTime(data.exif[name], data.TimeZone); !dateTime.IsZero() {
 			takenAt = dateTime
 			break
 		}

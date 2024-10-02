@@ -16,8 +16,8 @@ var Extensions = FileExtensions{
 	".jif":      ImageJPEG,
 	".jfif":     ImageJPEG,
 	".jfi":      ImageJPEG,
-	".thm":      ImageJPEG,
 	".jxl":      ImageJPEGXL,
+	ExtTHM:      ImageThumb,
 	".tif":      ImageTIFF,
 	".tiff":     ImageTIFF,
 	".psd":      ImagePSD,
@@ -80,13 +80,14 @@ var Extensions = FileExtensions{
 	".srw":      ImageRaw,
 	".sr2":      ImageRaw,
 	".x3f":      ImageRaw,
+	ExtAVC:      VideoAVC,  // .avc
 	ExtHEVC:     VideoHEVC, // .hevc
+	ExtVVC:      VideoVVC,  // .vvc
+	ExtEVC:      VideoEVC,  // .evc
 	".mov":      VideoMOV,
 	".qt":       VideoMOV,
 	".avi":      VideoAVI,
 	".av1":      VideoAV1,
-	ExtAVC:      VideoAVC, // .avc
-	".vvc":      VideoVVC,
 	".mpg":      VideoMPG,
 	".mpeg":     VideoMPG,
 	".mjpg":     VideoMJPG,
@@ -96,6 +97,7 @@ var Extensions = FileExtensions{
 	".mp":       VideoMP4,
 	ExtMP4:      VideoMP4, // .mp4
 	".m4v":      VideoM4V,
+	".mxf":      VideoMXF,
 	".3gp":      Video3GP,
 	".3g2":      Video3G2,
 	".flv":      VideoFlash,
@@ -129,6 +131,7 @@ var Extensions = FileExtensions{
 	".yaml":     SidecarYAML,
 	".json":     SidecarJSON,
 	".txt":      SidecarText,
+	".nfo":      SidecarInfo,
 	".md":       SidecarMarkdown,
 	".markdown": SidecarMarkdown,
 }
